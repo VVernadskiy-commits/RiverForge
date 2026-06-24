@@ -3,7 +3,7 @@
 <head>
     <link rel="icon" href="public/icon-192.png" type="image/png">
     <meta charset="UTF-8">
-    <meta name="application-version" content="v0.6.1">
+    <meta name="application-version" content="v0.6.2">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RiverForge</title>
     <meta name="description" content="Цифровой лист персонажа и игровой справочник для НРИ">
@@ -373,6 +373,8 @@
             border-radius: 10px;
             max-width: 330px;
             width: 85%;
+            max-height: 90vh;
+            overflow-y: auto;
             padding: 20px;
             color: #f0f0f0;
             position: relative;
@@ -1051,6 +1053,9 @@
             animation: pulse-restricted 1.6s ease-in-out infinite;
         }
         .skill-learn-btn.learn-restricted:hover { background: rgba(218,52,52,0.22); }
+        body.light-theme .skill-learn-btn { background: rgba(0,0,0,0.10); }
+        body.light-theme .skill-learn-btn:hover { background: rgba(0,0,0,0.18); }
+        body.light-theme .skill-learn-btn:disabled { background: rgba(0,0,0,0.05); }
         @keyframes pulse-restricted {
             0%, 100% { box-shadow: 0 0 0 0 rgba(218,52,52,0); }
             50%       { box-shadow: 0 0 7px 2px rgba(218,52,52,0.45); }
@@ -1712,7 +1717,12 @@
     var CLASS_ARTS = {}, CLASS_BG = {}, CLASS_DATA = {}, CLASS_AVAIL = {};
     var RACE_ARTS  = {}, RACE_DATA  = {};
     var STAT_TYPES = {}, STAT_COLORS = {}, STAT_SOURCES = {};
-    var ALL_VLADENIE = [], ALL_KHAR = [], EQUIP_SLOTS = [];
+    var ALL_VLADENIE = [], ALL_KHAR = [], ALL_SKLON = ['тело','разум','дух'], EQUIP_SLOTS = [];
+    var ATTR_BASE_SOURCES = {
+        'здоровье': [{key:'тело',pct:100},{key:'атлетизм',pct:20},{key:'сила',pct:10},{key:'уровень',pct:500}],
+        'энергия':  [{key:'тело',pct:20},{key:'стойкость',pct:5},{key:'выдержка',pct:5},{key:'уровень',pct:100}],
+        'мана':     [{key:'разум',pct:100},{key:'интеллект',pct:100},{key:'память',pct:50},{key:'дух',pct:300},{key:'уровень',pct:500}]
+    };
     var BADGE_DARK = '#ffc107', BADGE_LIGHT = '#009b9e';
 
     function getClassArt(cls, spec) {
@@ -2073,7 +2083,7 @@
             var sc = STAT_COLORS[s] || '#8a8d9a';
             var stored = weights[s];
             var active = stored ? stored.active : isBasic;
-            var pct    = stored ? stored.pct   : (isBasic ? 100 : 10);
+            var pct    = stored ? stored.pct   : (isBasic ? 50 : 0);
             var idSafe = 'swpct_' + s.replace(/\s+/g,'_');
             var lt = document.body.classList.contains('light-theme');
             var btnStyle = 'width:20px;height:20px;border-radius:3px;'
@@ -2086,9 +2096,46 @@
             var cbCursor = ro ? 'cursor:default;' : 'cursor:pointer;';
             var pctRow = active
                 ? '<div style="display:flex;align-items:center;justify-content:center;gap:4px;margin-top:5px;">'
-                  + '<button '+(ro?'':' onclick="event.stopPropagation();changeStatWeightPct(\''+s+'\',-10)"')+' style="'+(ro?btnDis:btnStyle)+'">−</button>'
+                  + '<button '+(ro?'':' onclick="event.stopPropagation();changeStatWeightPct(\''+s+'\',-5)"')+' style="'+(ro?btnDis:btnStyle)+'">−</button>'
                   + '<span id="'+idSafe+'" style="font-size:11px;font-weight:bold;color:'+sc+';min-width:40px;text-align:center;">'+pct+'%</span>'
-                  + '<button '+(ro?'':' onclick="event.stopPropagation();changeStatWeightPct(\''+s+'\',10)"')+' style="'+(ro?btnDis:btnStyle)+'">+</button>'
+                  + '<button '+(ro?'':' onclick="event.stopPropagation();changeStatWeightPct(\''+s+'\',5)"')+' style="'+(ro?btnDis:btnStyle)+'">+</button>'
+                  + '</div>'
+                : '';
+            return '<div style="display:flex;flex-direction:column;width:calc(50% - 4px);box-sizing:border-box;padding:5px 8px;border-radius:6px;border:1px solid '+hexToRgba(sc,0.5)+';background:'+hexToRgba(sc,0.1)+';">'
+                + '<div style="display:flex;justify-content:space-between;align-items:center;gap:4px;">'
+                + '<span style="color:'+sc+';font-size:11px;font-weight:bold;">'+s+'</span>'
+                + '<div '+cbClick+'style="width:14px;height:14px;border:1px solid '+hexToRgba(sc,0.7)+';border-radius:2px;display:flex;align-items:center;justify-content:center;'+cbCursor+'color:'+sc+';font-size:10px;font-weight:bold;flex-shrink:0;">'+(active?'✓':'')+'</div>'
+                + '</div>'
+                + pctRow
+                + '</div>';
+        }).join('');
+    }
+
+    function makeAttrBasicChips(baseSrcs, targetStatKey) {
+        var ww = loadStatWeights();
+        var weights = ww[targetStatKey] || {};
+        var ro = !currentCharIsOwner;
+        return baseSrcs.map(function(src) {
+            var s = src.key;
+            var sc = STAT_COLORS[s] || '#8a8d9a';
+            var stored = weights[s];
+            var active = stored ? stored.active : true;
+            var pct = stored ? stored.pct : src.pct;
+            var idSafe = 'swpct_' + s.replace(/\s+/g,'_');
+            var lt = document.body.classList.contains('light-theme');
+            var btnStyle = 'width:20px;height:20px;border-radius:3px;'
+                + 'background:' + (lt ? sc : hexToRgba(sc, 0.18)) + ';'
+                + 'border:1.5px solid ' + sc + ';'
+                + 'color:' + (lt ? '#fff' : sc) + ';'
+                + 'font-size:13px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;line-height:1;flex-shrink:0;';
+            var btnDis = 'width:20px;height:20px;visibility:hidden;pointer-events:none;display:flex;flex-shrink:0;';
+            var cbClick  = ro ? '' : 'onclick="event.stopPropagation();toggleStatWeight(\''+s+'\')" ';
+            var cbCursor = ro ? 'cursor:default;' : 'cursor:pointer;';
+            var pctRow = active
+                ? '<div style="display:flex;align-items:center;justify-content:center;gap:4px;margin-top:5px;">'
+                  + '<button '+(ro?'':' onclick="event.stopPropagation();changeStatWeightPct(\''+s+'\',-5)"')+' style="'+(ro?btnDis:btnStyle)+'">−</button>'
+                  + '<span id="'+idSafe+'" style="font-size:11px;font-weight:bold;color:'+sc+';min-width:40px;text-align:center;">'+pct+'%</span>'
+                  + '<button '+(ro?'':' onclick="event.stopPropagation();changeStatWeightPct(\''+s+'\',5)"')+' style="'+(ro?btnDis:btnStyle)+'">+</button>'
                   + '</div>'
                 : '';
             return '<div style="display:flex;flex-direction:column;width:calc(50% - 4px);box-sizing:border-box;padding:5px 8px;border-radius:6px;border:1px solid '+hexToRgba(sc,0.5)+';background:'+hexToRgba(sc,0.1)+';">'
@@ -2111,9 +2158,16 @@
         var key = currentPopupStat; if (!key) return;
         var w = loadStatWeights();
         if (!w[key]) w[key] = {};
-        var sources = STAT_SOURCES[key] || [];
-        var isBasic = sources.indexOf(sourceStat) >= 0;
-        if (!w[key][sourceStat]) w[key][sourceStat] = {active: isBasic, pct: isBasic ? 100 : 10};
+        var attrSrcs = ATTR_BASE_SOURCES[key];
+        var isBasic, defaultPct;
+        if (attrSrcs) {
+            var found = attrSrcs.find(function(s){ return s.key === sourceStat; });
+            isBasic = !!found; defaultPct = found ? found.pct : 5;
+        } else {
+            var sources = STAT_SOURCES[key] || [];
+            isBasic = sources.indexOf(sourceStat) >= 0; defaultPct = isBasic ? 50 : 0;
+        }
+        if (!w[key][sourceStat]) w[key][sourceStat] = {active: isBasic, pct: defaultPct};
         w[key][sourceStat].active = !w[key][sourceStat].active;
         saveStatWeights(w);
         reRenderFormulaBoxes();
@@ -2125,11 +2179,18 @@
         var key = currentPopupStat; if (!key) return;
         var w = loadStatWeights();
         if (!w[key]) w[key] = {};
-        var sources = STAT_SOURCES[key] || [];
-        var isBasic = sources.indexOf(sourceStat) >= 0;
-        if (!w[key][sourceStat]) w[key][sourceStat] = {active: true, pct: isBasic ? 100 : 10};
+        var attrSrcs = ATTR_BASE_SOURCES[key];
+        var defaultPct;
+        if (attrSrcs) {
+            var found = attrSrcs.find(function(s){ return s.key === sourceStat; });
+            defaultPct = found ? found.pct : 5;
+        } else {
+            var sources = STAT_SOURCES[key] || [];
+            defaultPct = sources.indexOf(sourceStat) >= 0 ? 50 : 5;
+        }
+        if (!w[key][sourceStat]) w[key][sourceStat] = {active: true, pct: defaultPct};
         var cur = w[key][sourceStat];
-        cur.pct = Math.max(10, Math.min(200, (cur.pct || 100) + delta));
+        cur.pct = Math.max(5, Math.min(500, (cur.pct || defaultPct) + delta));
         saveStatWeights(w);
         var idSafe = 'swpct_' + sourceStat.replace(/\s+/g,'_');
         var el = document.getElementById(idSafe);
@@ -2160,8 +2221,26 @@
         if (dicePanel) dicePanel.style.display = 'none';
         if (statPanel) statPanel.style.display = 'none';
         if (type === 'атрибут') {
-            if (f1) f1.style.display = 'none';
-            if (f2) f2.style.display = 'none';
+            var attrSrcs = ATTR_BASE_SOURCES[key];
+            if (attrSrcs) {
+                var baseKeys = attrSrcs.map(function(s){ return s.key; });
+                if (f1 && fs1) {
+                    f1.style.display = 'block';
+                    f1.style.borderColor = hexToRgba(color, 0.35);
+                    fs1.innerHTML = makeAttrBasicChips(attrSrcs, key);
+                } else if (f1) { f1.style.display = 'none'; }
+                var nonBasic = ALL_VLADENIE.concat(ALL_KHAR).concat(ALL_SKLON).filter(function(k){
+                    return baseKeys.indexOf(k) < 0;
+                });
+                if (nonBasic.length && f2 && fs2) {
+                    f2.style.display = 'block';
+                    f2.style.borderColor = hexToRgba(color, 0.35);
+                    fs2.innerHTML = makeChipsWithControls(nonBasic, key, false);
+                } else if (f2) { f2.style.display = 'none'; }
+            } else {
+                if (f1) f1.style.display = 'none';
+                if (f2) f2.style.display = 'none';
+            }
             if (!currentPopupResource) {
                 if (resPanel) resPanel.style.display = 'none';
             } else {
@@ -2932,10 +3011,10 @@
                 var isBasic = sources.indexOf(v) >= 0;
                 var active = stored !== undefined ? stored.active : isBasic;
                 if (!active) return;
-                var pct = stored !== undefined ? stored.pct : (isBasic ? 100 : 10);
+                var pct = stored !== undefined ? stored.pct : (isBasic ? 50 : 0);
                 sum += (pct / 100) * (fs[v] || 1);
             });
-            return f(sum / 2);
+            return f(sum);
         }
 
         var kharVals = {};
@@ -2951,33 +3030,51 @@
                 var isBasic = sources.indexOf(k) >= 0;
                 var active = stored !== undefined ? stored.active : isBasic;
                 if (!active) return;
-                var pct = stored !== undefined ? stored.pct : (isBasic ? 100 : 10);
+                var pct = stored !== undefined ? stored.pct : (isBasic ? 50 : 0);
                 sum += (pct / 100) * kharMap[k];
             });
-            return f(sum / 2);
+            return f(sum);
         }
 
         var telo = sklonVal('тело');
         var razum = sklonVal('разум');
         var duh = sklonVal('дух');
 
-        var level = f((telo+razum+duh)/3);
+        var level = f(0.35 * (telo + razum + duh));
         var usilye = 1 + f(level/2);
-        var initSrc = STAT_SOURCES['инициатива'] || [];
-        var initW = w['инициатива'] || {};
-        var initSum = 0;
-        ALL_VLADENIE.forEach(function(v) {
-            var stored = initW[v];
-            var isB = initSrc.indexOf(v) >= 0;
-            var active = stored !== undefined ? stored.active : isB;
-            if (!active) return;
-            var pct = stored !== undefined ? stored.pct : (isB ? 100 : 10);
-            initSum += (pct / 100) * (fs[v] || 1);
-        });
-        var init = f(initSum / 5);
-        var hp = f((5*telo + kharVals['атлетизм'] + fs.сила/2) / 5) + 5*level + 5;
-        var energy = f((telo + fs.стойкость/3 + fs.выдержка/3) / 5) + level + 5;
-        var mana = (razum + kharVals['интеллект'] + f(fs.память/2) + 3*duh) + 5*level + 5;
+        var init   = f(0.20 * (fs['скрытность'] || 1) + 0.20 * (fs['интуиция'] || 1) + 0.20 * (fs['мышление'] || 1));
+        var _sklonMap   = {тело: telo, разум: razum, дух: duh};
+        var _derivedMap = {уровень: level, усилие: usilye, инициатива: init};
+        function _anyVal(k) {
+            if (fs[k]       !== undefined) return fs[k]       || 1;
+            if (kharVals[k] !== undefined) return kharVals[k] || 1;
+            if (_sklonMap[k]   !== undefined) return _sklonMap[k]   || 1;
+            if (_derivedMap[k] !== undefined) return _derivedMap[k] || 1;
+            return 1;
+        }
+        function _attrVal(attrKey) {
+            var baseSrcs = ATTR_BASE_SOURCES[attrKey] || [];
+            var baseKeys = baseSrcs.map(function(s){ return s.key; });
+            var weights  = w[attrKey] || {};
+            var sum = 5;
+            baseSrcs.forEach(function(src) {
+                var stored = weights[src.key];
+                var active = stored ? stored.active : true;
+                if (!active) return;
+                var pct = stored ? stored.pct : src.pct;
+                sum += (pct / 100) * _anyVal(src.key);
+            });
+            ALL_VLADENIE.concat(ALL_KHAR).concat(ALL_SKLON).forEach(function(k) {
+                if (baseKeys.indexOf(k) >= 0) return;
+                var stored = weights[k];
+                if (!stored || !stored.active) return;
+                sum += (stored.pct / 100) * _anyVal(k);
+            });
+            return f(sum);
+        }
+        var hp     = _attrVal('здоровье');
+        var energy = _attrVal('энергия');
+        var mana   = _attrVal('мана');
         return {ловкость:kharVals['ловкость'],атлетизм:kharVals['атлетизм'],восприятие:kharVals['восприятие'],
                 интеллект:kharVals['интеллект'],воля:kharVals['воля'],харизма:kharVals['харизма'],
                 тело:telo,разум:razum,дух:duh,уровень:level,
