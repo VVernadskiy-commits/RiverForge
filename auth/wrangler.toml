@@ -1,0 +1,21 @@
+name       = "riverforge-auth"
+main       = "worker.js"
+account_id = "8e179a5d1553e146eee3e0fa0c697ab4"
+
+compatibility_date = "2024-01-01"
+
+[[kv_namespaces]]
+binding = "CHARS"
+id      = "b6db084fd796401ea7eb8b3fde5f208d"
+
+# Переменные окружения — НЕ секреты (публичные)
+[vars]
+APP_URL = "https://vvernadskiy-commits.github.io/RiverForge"
+
+# Секреты задаются через команды:
+#   wrangler secret put DISCORD_CLIENT_ID
+#   wrangler secret put DISCORD_CLIENT_SECRET
+#   wrangler secret put JWT_SECRET
+#
+# JWT_SECRET — сгенерировать случайную строку, например:
+#   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
