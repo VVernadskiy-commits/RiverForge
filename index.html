@@ -3,7 +3,7 @@
 <head>
     <link rel="icon" href="public/icon-192.png" type="image/png">
     <meta charset="UTF-8">
-    <meta name="application-version" content="v0.6.3">
+    <meta name="application-version" content="v0.6.4">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RiverForge</title>
     <meta name="description" content="Цифровой лист персонажа и игровой справочник для НРИ">
@@ -652,8 +652,39 @@
             flex: 1;
             background: #1f232d; border: 1px solid #4f546c;
             color: #fff; padding: 7px 8px;
-            border-radius: 6px; font-size: 13px; outline: none;
+            border-radius: 12px; font-size: 13px; outline: none;
+            cursor: pointer; color-scheme: dark;
+            transition: border-color 0.15s, background 0.15s;
         }
+        .char-select:hover { border-color: #7a7e9a; }
+        body.light-theme .char-select {
+            background: #ccccd6; border-color: #aaaab8; color: #111118;
+            color-scheme: light;
+        }
+        body.light-theme .char-select:hover { border-color: #888898; }
+
+        .dsel { position: relative; flex: 1; user-select: none; }
+        .dsel-trg { display: flex; align-items: center; justify-content: space-between; gap: 4px;
+            background: #1f232d; border: 1px solid #4f546c; color: #fff;
+            padding: 7px 10px; border-radius: 12px; font-size: 13px; cursor: pointer;
+            transition: border-color 0.15s; }
+        .dsel-trg:hover, .dsel-trg.open { border-color: #7a7e9a; }
+        .dsel.dsel-dis .dsel-trg { cursor: default; pointer-events: none; opacity: 0.55; }
+        .dsel-arr { font-size: 10px; opacity: 0.55; transition: transform 0.18s; flex-shrink: 0; }
+        .dsel-trg.open .dsel-arr { transform: rotate(180deg); }
+        .dsel-drop { position: absolute; z-index: 9999; background: #1f232d; border: 1px solid #4f546c;
+            border-radius: 12px; box-shadow: 0 8px 28px rgba(0,0,0,.65); padding: 4px;
+            min-width: 130px; display: none; overflow-y: auto; max-height: 50vh; }
+        .dsel-opt { padding: 7px 10px; font-size: 13px; cursor: pointer; color: #e0e2ec;
+            border-radius: 8px; transition: background 0.1s; white-space: nowrap; }
+        .dsel-opt:hover { background: rgba(255,255,255,0.08); }
+        .dsel-opt.dsel-sel { color: #28a745; font-weight: 600; }
+        body.light-theme .dsel-trg { background: #ccccd6; border-color: #aaaab8; color: #111118; }
+        body.light-theme .dsel-trg:hover, body.light-theme .dsel-trg.open { border-color: #888898; }
+        body.light-theme .dsel-drop { background: #e4e4ec; border-color: #aaaab8; }
+        body.light-theme .dsel-opt { color: #111118; }
+        body.light-theme .dsel-opt:hover { background: rgba(0,0,0,0.07); }
+        body.light-theme .dsel-opt.dsel-sel { color: #1a7a2e; }
 
         /* ── Блок характеристик (Тело / Разум / Дух) ── */
         .stats-section { padding: 10px 12px 20px; display: flex; flex-direction: column; gap: 10px; }
@@ -1340,6 +1371,11 @@
                 <div class="t-knob"></div>
                 <span class="t-icon t-sun">☀️</span>
             </div>
+        </div>
+        <div id="devOwnerSection" style="display:none;padding:12px 18px;border-top:1px solid #2d3142;">
+            <button id="devOwnerBtn" onclick="toggleDevOwner()" style="width:100%;padding:8px 12px;border-radius:8px;border:1px solid #4f546c;background:rgba(255,255,255,0.05);color:#a3a6b5;font-size:12px;cursor:pointer;transition:all 0.15s;">
+                🔒 Режим владельца: ВЫКЛ
+            </button>
         </div>
         <div class="drawer-footer" id="drawerVersion">RiverForge</div>
     </div>
@@ -3119,11 +3155,25 @@
         catch(e) { return null; }
     }
 
+    var _devOwnerMode = false;
     function isOwnerOf(char) {
+        if (_devOwnerMode) return true;
         var uid = getCurrentDiscordId();
         if (!uid) return false;
         if (!char.owner_id) return true;
         return char.owner_id === uid;
+    }
+    function toggleDevOwner() {
+        _devOwnerMode = !_devOwnerMode;
+        var btn = document.getElementById('devOwnerBtn');
+        if (btn) {
+            btn.textContent = _devOwnerMode ? '🔓 Режим владельца: ВКЛ' : '🔒 Режим владельца: ВЫКЛ';
+            btn.style.background = _devOwnerMode ? 'rgba(40,167,69,0.18)' : 'rgba(255,255,255,0.05)';
+            btn.style.borderColor = _devOwnerMode ? '#28a745' : '#4f546c';
+            btn.style.color = _devOwnerMode ? '#28a745' : '#a3a6b5';
+        }
+        var char = getCurrentChar();
+        if (char) { currentCharIsOwner = isOwnerOf(char); renderCharDetail(char); }
     }
 
     function requireOwner() {
@@ -3227,13 +3277,17 @@
         nameInput.style.cursor = currentCharIsOwner ? '' : 'default';
         var _csel = document.getElementById('charClassSelect');
         if (_csel) {
-            _csel.innerHTML = CLASSES.map(function(c){return '<option value="'+c+'"'+(char.cls===c?' selected':'')+'>'+c+'</option>';}).join('');
+            var _cdrop = _csel.querySelector('.dsel-drop');
+            if (_cdrop) _cdrop.innerHTML = CLASSES.map(function(c){return '<div class="dsel-opt'+(char.cls===c?' dsel-sel':'')+'" data-val="'+c+'">'+c+'</div>';}).join('');
+            var _cval = _csel.querySelector('.dsel-val'); if (_cval) _cval.textContent = char.cls || '';
             renderSpecSelect(char);
         }
         var curRace = char.race || 'Человек';
         var _rsel = document.getElementById('charRaceSelect');
         if (_rsel) {
-            _rsel.innerHTML = RACES.map(function(r){return '<option value="'+r+'"'+(curRace===r?' selected':'')+'>'+r+'</option>';}).join('');
+            var _rdrop = _rsel.querySelector('.dsel-drop');
+            if (_rdrop) _rdrop.innerHTML = RACES.map(function(r){return '<div class="dsel-opt'+(r===curRace?' dsel-sel':'')+'" data-val="'+r+'">'+r+'</div>';}).join('');
+            var _rval = _rsel.querySelector('.dsel-val'); if (_rval) _rval.textContent = curRace;
             renderSubraceSelect(char);
         }
         renderStats(char);
@@ -3253,8 +3307,10 @@
         var specs = SPECS[char.cls] || [];
         if (!specs.length) { sel.style.display = 'none'; return; }
         sel.style.display = '';
-        sel.innerHTML = '<option value="">— специализация —</option>' +
-            specs.map(function(s){return '<option value="'+s+'"'+(char.spec===s?' selected':'')+'>'+s+'</option>';}).join('');
+        var drop = sel.querySelector('.dsel-drop'), valEl = sel.querySelector('.dsel-val');
+        if (drop) drop.innerHTML = '<div class="dsel-opt'+(!char.spec?' dsel-sel':'')+'" data-val="">— специализация —</div>'
+            + specs.map(function(s){return '<div class="dsel-opt'+(char.spec===s?' dsel-sel':'')+'" data-val="'+s+'">'+s+'</div>';}).join('');
+        if (valEl) valEl.textContent = char.spec || '— специализация —';
     }
 
     /* ── Блоки характеристик Тело / Разум / Дух ─────────────────────────────────
@@ -3522,20 +3578,20 @@
         renderCharacterList();
     }
 
-    function updateCharClass() {
+    function updateCharClass(val) {
         if (!requireOwner()) return;
         var chars = loadChars(), char = chars.find(function(c){return c.id===currentCharId;});
         if (!char) return;
-        char.cls = document.getElementById('charClassSelect').value; char.spec = '';
+        char.cls = val; char.spec = '';
         saveChars(chars); renderSpecSelect(char); renderCharacterList();
         if (currentCharTab === 'dossier') renderDossier(char);
     }
 
-    function updateCharSpec() {
+    function updateCharSpec(val) {
         if (!requireOwner()) return;
         var chars = loadChars(), char = chars.find(function(c){return c.id===currentCharId;});
         if (!char) return;
-        char.spec = document.getElementById('charSpecSelect').value;
+        char.spec = val;
         saveChars(chars); renderCharacterList();
         if (currentCharTab === 'dossier') renderDossier(char);
     }
@@ -3547,25 +3603,26 @@
         var subs = SUBRACES[race] || [];
         if (!subs.length) { sel.style.display = 'none'; return; }
         sel.style.display = '';
-        sel.innerHTML = '<option value="">— подраса —</option>' +
-            subs.map(function(s){return '<option value="'+s+'"'+((char.subrace===s)?' selected':'')+'>'+s+'</option>';}).join('');
+        var drop = sel.querySelector('.dsel-drop'), valEl = sel.querySelector('.dsel-val');
+        if (drop) drop.innerHTML = '<div class="dsel-opt'+(!char.subrace?' dsel-sel':'')+'" data-val="">— подраса —</div>'
+            + subs.map(function(s){return '<div class="dsel-opt'+(char.subrace===s?' dsel-sel':'')+'" data-val="'+s+'">'+s+'</div>';}).join('');
+        if (valEl) valEl.textContent = char.subrace || '— подраса —';
     }
 
-    function updateCharRace() {
+    function updateCharRace(val) {
         if (!requireOwner()) return;
         var chars = loadChars(), char = chars.find(function(c){return c.id===currentCharId;});
         if (!char) return;
-        char.race = document.getElementById('charRaceSelect').value;
-        char.subrace = '';
+        char.race = val; char.subrace = '';
         saveChars(chars); renderSubraceSelect(char); renderCharacterList();
         if (currentCharTab === 'dossier') renderDossier(char);
     }
 
-    function updateCharSubrace() {
+    function updateCharSubrace(val) {
         if (!requireOwner()) return;
         var chars = loadChars(), char = chars.find(function(c){return c.id===currentCharId;});
         if (!char) return;
-        char.subrace = document.getElementById('charSubraceSelect').value;
+        char.subrace = val;
         saveChars(chars); renderCharacterList();
         if (currentCharTab === 'dossier') renderDossier(char);
     }
@@ -4343,18 +4400,14 @@
             var art2 = getClassArt(cls, spec);
             var clsData  = CLASS_DATA[cls] || {};
             var specData = (spec && CLASS_DATA[cls + '::' + spec]) || {};
-            var _lt = document.body.classList.contains('light-theme');
-            var selStyle = _lt
-                ? 'background:#ccccd6;border:1px solid #aaaab8;color:#111118;padding:7px 8px;border-radius:12px;font-size:13px;outline:none;flex:1;'
-                : 'background:#1f232d;border:1px solid #4f546c;color:#fff;padding:7px 8px;border-radius:12px;font-size:13px;outline:none;flex:1;';
             var selDis = currentCharIsOwner ? '' : 'disabled ';
             var selOpacity = currentCharIsOwner ? '' : 'opacity:0.55;cursor:default;';
             var blocks = '<div class="dossier-block" style="background:rgba(10,12,16,0.8);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);'
                 + 'border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:10px 12px;">'
                 + '<div class="dossier-block-label" style="font-size:10px;font-weight:bold;text-transform:uppercase;letter-spacing:0.8px;color:#8a8d9a;margin-bottom:6px;">Класс и специализация</div>'
                 + '<div style="display:flex;gap:8px;width:100%;">'
-                + '<select '+selDis+'id="charClassSelect" style="'+selStyle+selOpacity+'" onchange="updateCharClass()"></select>'
-                + '<select '+selDis+'id="charSpecSelect" style="'+selStyle+'display:none;'+selOpacity+'" onchange="updateCharSpec()"></select>'
+                + '<div class="dsel'+(currentCharIsOwner?'':' dsel-dis')+'" id="charClassSelect" data-cb="updateCharClass"><div class="dsel-trg"><span class="dsel-val">'+cls+'</span><span class="dsel-arr">▾</span></div><div class="dsel-drop"></div></div>'
+                + '<div class="dsel'+(currentCharIsOwner?'':' dsel-dis')+'" id="charSpecSelect" data-cb="updateCharSpec" style="display:none;"><div class="dsel-trg"><span class="dsel-val"></span><span class="dsel-arr">▾</span></div><div class="dsel-drop"></div></div>'
                 + '</div></div>';
             if (spec && ('activationCond' in specData))
                 blocks += classInfoBlock('Условия активации специализации', specData.activationCond);
@@ -4401,18 +4454,14 @@
             } else {
                 var raceData  = RACE_DATA[race] || {};
                 var subData   = (subrace && RACE_DATA[race + '::' + subrace]) || {};
-                var _lt2 = document.body.classList.contains('light-theme');
-                var rSelStyle = _lt2
-                    ? 'background:#ccccd6;border:1px solid #aaaab8;color:#111118;padding:7px 8px;border-radius:12px;font-size:13px;outline:none;flex:1;'
-                    : 'background:#1f232d;border:1px solid #4f546c;color:#fff;padding:7px 8px;border-radius:12px;font-size:13px;outline:none;flex:1;';
                 var rSelDis = currentCharIsOwner ? '' : 'disabled ';
                 var rSelOp  = currentCharIsOwner ? '' : 'opacity:0.55;cursor:default;';
                 var rblocks = '<div class="dossier-block" style="background:rgba(10,12,16,0.8);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);'
                     + 'border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:10px 12px;">'
                     + '<div class="dossier-block-label" style="font-size:10px;font-weight:bold;text-transform:uppercase;letter-spacing:0.8px;color:#8a8d9a;margin-bottom:6px;">Раса и подраса</div>'
                     + '<div style="display:flex;gap:8px;width:100%;">'
-                    + '<select '+rSelDis+'id="charRaceSelect" style="'+rSelStyle+rSelOp+'" onchange="updateCharRace()"></select>'
-                    + '<select '+rSelDis+'id="charSubraceSelect" style="'+rSelStyle+'display:none;'+rSelOp+'" onchange="updateCharSubrace()"></select>'
+                    + '<div class="dsel'+(currentCharIsOwner?'':' dsel-dis')+'" id="charRaceSelect" data-cb="updateCharRace"><div class="dsel-trg"><span class="dsel-val">'+race+'</span><span class="dsel-arr">▾</span></div><div class="dsel-drop"></div></div>'
+                    + '<div class="dsel'+(currentCharIsOwner?'':' dsel-dis')+'" id="charSubraceSelect" data-cb="updateCharSubrace" style="display:none;"><div class="dsel-trg"><span class="dsel-val"></span><span class="dsel-arr">▾</span></div><div class="dsel-drop"></div></div>'
                     + '</div></div>';
                 if ('raceBonus' in raceData)
                     rblocks += classInfoBlock('Расовый бонус', raceData.raceBonus);
@@ -4435,15 +4484,21 @@
         if (currentDossierView === 'class') {
             var csel = document.getElementById('charClassSelect');
             if (csel) {
-                csel.innerHTML = CLASSES.map(function(c){return '<option value="'+c+'"'+(char.cls===c?' selected':'')+'>'+c+'</option>';}).join('');
+                var cdrop = csel.querySelector('.dsel-drop');
+                if (cdrop) cdrop.innerHTML = CLASSES.map(function(c){
+                    return '<div class="dsel-opt'+(char.cls===c?' dsel-sel':'')+'" data-val="'+c+'">'+c+'</div>';
+                }).join('');
                 renderSpecSelect(char);
             }
         }
         if (currentDossierView === 'race') {
             var rsel = document.getElementById('charRaceSelect');
             if (rsel) {
+                var rdrop = rsel.querySelector('.dsel-drop');
                 var curRace = char.race || 'Человек';
-                rsel.innerHTML = RACES.map(function(r){return '<option value="'+r+'"'+(curRace===r?' selected':'')+'>'+r+'</option>';}).join('');
+                if (rdrop) rdrop.innerHTML = RACES.map(function(r){
+                    return '<div class="dsel-opt'+(r===curRace?' dsel-sel':'')+'" data-val="'+r+'">'+r+'</div>';
+                }).join('');
                 renderSubraceSelect(char);
             }
         }
@@ -4452,6 +4507,57 @@
             setTimeout(function() { document.addEventListener('mousedown', onHistoryClickOutside); }, 0);
         }
     }
+
+    function dselClose() {
+        document.querySelectorAll('.dsel-drop[data-dsel-owner]').forEach(function(d) {
+            var owner = document.getElementById(d.dataset.dselOwner);
+            if (owner) owner.appendChild(d);
+            d.removeAttribute('data-dsel-owner');
+        });
+        document.querySelectorAll('.dsel-drop').forEach(function(d){ d.style.display='none'; });
+        document.querySelectorAll('.dsel-trg.open').forEach(function(t){ t.classList.remove('open'); });
+    }
+    function dselOpen(dsel) {
+        var trg = dsel.querySelector('.dsel-trg'), drop = dsel.querySelector('.dsel-drop');
+        if (!trg || !drop) return;
+        dselClose();
+        var phone = document.querySelector('.phone-container');
+        if (!phone) return;
+        var tRect = trg.getBoundingClientRect();
+        var pRect = phone.getBoundingClientRect();
+        drop.dataset.dselOwner = dsel.id;
+        phone.appendChild(drop);
+        drop.style.top  = Math.round(tRect.bottom - pRect.top  + 4) + 'px';
+        drop.style.left = Math.round(tRect.left   - pRect.left    ) + 'px';
+        drop.style.minWidth = Math.round(tRect.width) + 'px';
+        drop.style.display = 'block';
+        trg.classList.add('open');
+        var sel = drop.querySelector('.dsel-sel');
+        if (sel) setTimeout(function(){ sel.scrollIntoView({block:'nearest'}); }, 0);
+    }
+    document.addEventListener('click', function(e) {
+        var trg = e.target.closest('.dsel-trg');
+        if (trg) {
+            var ds = trg.closest('.dsel');
+            if (ds) { trg.classList.contains('open') ? dselClose() : dselOpen(ds); return; }
+        }
+        var opt = e.target.closest('.dsel-opt');
+        if (opt) {
+            var drop = opt.closest('.dsel-drop');
+            var ds = opt.closest('.dsel') || (drop && drop.dataset.dselOwner ? document.getElementById(drop.dataset.dselOwner) : null);
+            if (ds) {
+                var val = opt.dataset.val || '';
+                var valEl = ds.querySelector('.dsel-val');
+                if (valEl) valEl.textContent = opt.textContent;
+                ds.querySelectorAll('.dsel-opt').forEach(function(o){ o.classList.toggle('dsel-sel', o===opt); });
+                dselClose();
+                var cb = ds.dataset.cb;
+                if (cb && window[cb]) window[cb](val);
+                return;
+            }
+        }
+        if (!e.target.closest('.dsel')) dselClose();
+    });
 
     function switchDossierView(view) {
         if (currentDossierView === 'history' && dossierHistoryEditing) saveHistoryText();
@@ -5224,6 +5330,11 @@
     })();
 
     document.addEventListener('DOMContentLoaded', async function() {
+        var _host = window.location.hostname;
+        if (_host === 'localhost' || _host === '127.0.0.1') {
+            var sec = document.getElementById('devOwnerSection');
+            if (sec) sec.style.display = 'block';
+        }
         try {
             var results = await Promise.all([
                 fetch('/RiverForge/public/db.json').then(function(r) { return r.json(); }),
@@ -5396,7 +5507,10 @@
         document.getElementById('themeToggle').classList.toggle('on', isLight);
         if (currentCharId) {
             var char = loadChars().find(function(c){return c.id===currentCharId;});
-            if (char) renderStats(char);
+            if (char) {
+                renderStats(char);
+                if (currentCharTab === 'dossier') renderDossier(char);
+            }
         }
         if (_libRaceSelected && window._dbRaw) {
             var elR = document.getElementById('lib-panel-races');
