@@ -3,3 +3,4 @@ node_modules/
 auth/.dev.vars
 *.env
 .env
+editor/

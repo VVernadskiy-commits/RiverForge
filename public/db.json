@@ -2423,7 +2423,7 @@
       "specs": {
         "Паладин": {
           "art": "https://lh3.googleusercontent.com/pw/AP1GczPY6m4wCd86-YVf54puXB7kSvXT9iUg7NToUbxaX6SwO5KePyHv20__CI_OibSsSl059r0pTRMxpF0g88-QkGbLItqbYATWWffmZf4fzK4Uao_YMvXYA21fyEQ0VWT_OexryHncef-Z69aWFJCIQkDo=w709-h1271-s-no-gm?authuser=0",
-          "bg": "https://lh3.googleusercontent.com/pw/AP1GczMXqrtgR3vpL-Lq26vS1vtljydHDNLuuou_SUg6NwUEu8RbYwqeGYh6EpkiQx6BJdcQYcge33yaNd98OGwqKzycfngRiQHqMYWHc3bfbKpEDdzvc3F8y9ybF3ph9o174P1SGRXX-dsRgn6gu9LwCTJb=w2200-h440-s-no-gm?authuser=0",
+          "bg": "",
           "activationCond": {
             "name": "",
             "desc": ""
@@ -2450,7 +2450,7 @@
         },
         "Рыцарь смерти": {
           "art": "https://lh3.googleusercontent.com/pw/AP1GczPBnkOgcu5OxmAY3GhFALrrqC9SG91q93BU5HW3-qbxHc11N-z9mDctnuRRZcAPFw3XTg5bGVHRvmB1_IY8HUiCwWw4K9u-CBVCNmcS5WJavwdR3sG9S5taNi18kElrOsBtHMgj7ltORADUcqyY3UXI=w485-h869-s-no-gm?authuser=0",
-          "bg": "https://lh3.googleusercontent.com/pw/AP1GczMXqrtgR3vpL-Lq26vS1vtljydHDNLuuou_SUg6NwUEu8RbYwqeGYh6EpkiQx6BJdcQYcge33yaNd98OGwqKzycfngRiQHqMYWHc3bfbKpEDdzvc3F8y9ybF3ph9o174P1SGRXX-dsRgn6gu9LwCTJb=w2200-h440-s-no-gm?authuser=0",
+          "bg": "",
           "activationCond": {
             "name": "",
             "desc": ""
@@ -2477,7 +2477,7 @@
         },
         "Мистический чемпион": {
           "art": "https://lh3.googleusercontent.com/pw/AP1GczM7WcZuYEDGENuUGqQzbaegtPaBSACoZ9YafUy-bfaqoCEFqL0xM51bKGBUKpDavI-w7Xu37ALmc8vsXxykcYoKE5tiifdCOFoV9TP36-oArxMbjkog4CdlGQF3oZidUwrzTsxcjDXr2aIEZFfFe46x=w709-h1271-s-no-gm?authuser=0",
-          "bg": "https://lh3.googleusercontent.com/pw/AP1GczMXqrtgR3vpL-Lq26vS1vtljydHDNLuuou_SUg6NwUEu8RbYwqeGYh6EpkiQx6BJdcQYcge33yaNd98OGwqKzycfngRiQHqMYWHc3bfbKpEDdzvc3F8y9ybF3ph9o174P1SGRXX-dsRgn6gu9LwCTJb=w2200-h440-s-no-gm?authuser=0",
+          "bg": "",
           "activationCond": {
             "name": "",
             "desc": ""
