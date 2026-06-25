@@ -325,7 +325,7 @@
     },
     "light": {
       "bgColor": "#908484",
-      "cardBg": "#cccccc",
+      "cardBg": "#e6e6e6",
       "textMain": "#000000",
       "textMuted": "#333234"
     }

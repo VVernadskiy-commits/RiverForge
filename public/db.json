@@ -2422,8 +2422,8 @@
       },
       "specs": {
         "Паладин": {
-          "art": "https://lh3.googleusercontent.com/pw/AP1GczOCdbOrny8Qy6F5ZwY0NasZxd5SiP7r9SYsf-LBCcROrHlH3Gg4N8O7Da828DJ-XqarUC3jNZ3Kehjxb2jCYZRkyV0RtzsRAYevTy2RHYh2LVlVYmJk9pqoiIbALZamd8CjUkQqxrWt91vnBYc8co2M=w485-h869-s-no-gm?authuser=0",
-          "bg": "",
+          "art": "https://lh3.googleusercontent.com/pw/AP1GczPY6m4wCd86-YVf54puXB7kSvXT9iUg7NToUbxaX6SwO5KePyHv20__CI_OibSsSl059r0pTRMxpF0g88-QkGbLItqbYATWWffmZf4fzK4Uao_YMvXYA21fyEQ0VWT_OexryHncef-Z69aWFJCIQkDo=w709-h1271-s-no-gm?authuser=0",
+          "bg": "https://lh3.googleusercontent.com/pw/AP1GczMXqrtgR3vpL-Lq26vS1vtljydHDNLuuou_SUg6NwUEu8RbYwqeGYh6EpkiQx6BJdcQYcge33yaNd98OGwqKzycfngRiQHqMYWHc3bfbKpEDdzvc3F8y9ybF3ph9o174P1SGRXX-dsRgn6gu9LwCTJb=w2200-h440-s-no-gm?authuser=0",
           "activationCond": {
             "name": "",
             "desc": ""
@@ -2450,7 +2450,7 @@
         },
         "Рыцарь смерти": {
           "art": "https://lh3.googleusercontent.com/pw/AP1GczPBnkOgcu5OxmAY3GhFALrrqC9SG91q93BU5HW3-qbxHc11N-z9mDctnuRRZcAPFw3XTg5bGVHRvmB1_IY8HUiCwWw4K9u-CBVCNmcS5WJavwdR3sG9S5taNi18kElrOsBtHMgj7ltORADUcqyY3UXI=w485-h869-s-no-gm?authuser=0",
-          "bg": "",
+          "bg": "https://lh3.googleusercontent.com/pw/AP1GczMXqrtgR3vpL-Lq26vS1vtljydHDNLuuou_SUg6NwUEu8RbYwqeGYh6EpkiQx6BJdcQYcge33yaNd98OGwqKzycfngRiQHqMYWHc3bfbKpEDdzvc3F8y9ybF3ph9o174P1SGRXX-dsRgn6gu9LwCTJb=w2200-h440-s-no-gm?authuser=0",
           "activationCond": {
             "name": "",
             "desc": ""
@@ -2476,8 +2476,8 @@
           ]
         },
         "Мистический чемпион": {
-          "art": "https://lh3.googleusercontent.com/pw/AP1GczNZG_FMbElJvl-QiZDj04eaQKPJ0KKJW6cVHDTxN72s-WQg3MFQqgiRS2XhpRWKzbKmS7WFOUvUSqNfCAz2gyXIut5s0PkBD--qIcJqQ2gLnkJgHQ6Zyh0wrJ5j8JKQV-JWH4C0PRPPepiGi0Qsa_1O=w485-h869-s-no-gm?authuser=0",
-          "bg": "",
+          "art": "https://lh3.googleusercontent.com/pw/AP1GczM7WcZuYEDGENuUGqQzbaegtPaBSACoZ9YafUy-bfaqoCEFqL0xM51bKGBUKpDavI-w7Xu37ALmc8vsXxykcYoKE5tiifdCOFoV9TP36-oArxMbjkog4CdlGQF3oZidUwrzTsxcjDXr2aIEZFfFe46x=w709-h1271-s-no-gm?authuser=0",
+          "bg": "https://lh3.googleusercontent.com/pw/AP1GczMXqrtgR3vpL-Lq26vS1vtljydHDNLuuou_SUg6NwUEu8RbYwqeGYh6EpkiQx6BJdcQYcge33yaNd98OGwqKzycfngRiQHqMYWHc3bfbKpEDdzvc3F8y9ybF3ph9o174P1SGRXX-dsRgn6gu9LwCTJb=w2200-h440-s-no-gm?authuser=0",
           "activationCond": {
             "name": "",
             "desc": ""
@@ -2604,7 +2604,7 @@
       },
       "specs": {
         "Берсерк": {
-          "art": "https://lh3.googleusercontent.com/pw/AP1GczObpk9hczu4nX8204bz6jysYBGMhmNPFZsRsuKxp0TDZfmXAGGo3b08BpK6fylkJ7gaCCdLM2gfGYOG_Fk8V9XeQUjNZi80x5U8EnjVeU9qVCpY5PIQG8p6HnpL75iG=w485-h869-s-no-gm?authuser=0",
+          "art": "https://lh3.googleusercontent.com/pw/AP1GczObpk9hczu4nX8204bz6jysYBGMhmNPFZsRsuKxp0TDZfmXAWKyORsLb2P2nv9UCP_oC_-CAJGo3b08BpK6fylkJ7gaCCdLM2gfGYOG_Fk8V9XeQUjNZi80x5U8EnjVeU9qVCpY5PIQG8p6HnpL75iG=w709-h1271-s-no-gm?authuser=0",
           "bg": "",
           "activationCond": {
             "name": "",
@@ -2783,7 +2783,7 @@
       },
       "specs": {
         "Следопыт": {
-          "art": "https://lh3.googleusercontent.com/pw/AP1GczMxQ5GgaFLdoGhv0GV8mZuwVrWASS97tSR3e3Rh1ELK1Fz32ssJ7HooZDpeD88buDMueJ-P8RwSktBsZ-O1eb09YWF5ln3Za9WZexqHymt0s0c0ROK_4mxwMPCZPSsDaACCf=w485-h869-s-no-gm?authuser=0",
+          "art": "https://lh3.googleusercontent.com/pw/AP1GczMxQ5GgaFLdoGhv0GV8mZuwVrWASS97tSR3e3Rh1ELK1Fz32ssJ7HooZDpeD88buDMueJ-P8RwSktBsZ-O1ez0xLhqntEAQdeEqwPrIb09YWF5nl3Za9WZexqHymt0s0c0ROK_4mxwMPCZPSsDaACCf=w709-h1271-s-no-gm?authuser=0",
           "bg": "",
           "activationCond": {
             "name": "",
@@ -2837,7 +2837,7 @@
           ]
         },
         "Снайпер": {
-          "art": "https://lh3.googleusercontent.com/pw/AP1GczPzzKjMr9YJyUXaqv1vtHKZvYpc5KY0EpQWzCrZ6R-Dk_uzkWgASypgabwNM1kzCVxW_c9ePIbd2Dq5bvJt2qmFbRB_b9AigrPM-zJa3abdBY=w485-h869-s-no-gm?authuser=0",
+          "art": "https://lh3.googleusercontent.com/pw/AP1GczPzzKjMr9YJyUXaqv1vtHKZvYpc5KY0EpQWzCrZ6R-Dk_uzkWgASypgabwNM1kzCVxW_c9ePIbd2Dq5bvJt2qmFdRB_k4nD0xtJY3ziajQlWPIq-nTE6HRA4uzzz7SsenCDBNnNRl6b7FoU6wDeM_y6=w709-h1271-s-no-gm?authuser=0",
           "bg": "",
           "activationCond": {
             "name": "",
@@ -2927,7 +2927,7 @@
           "availMagic": []
         },
         "Синигами": {
-          "art": "https://lh3.googleusercontent.com/pw/AP1GczMU665AxG_bQGLp7EGxVZzs1ahFWE5ip4RyblG5BzR1G2VLhH1yAuzoyTIUGAEHa_XFuosxP-7K05n3Ls7RMk6PCsFB_zhJhsBrsQKNxyqVYv3hl6y6uODC7MTzglIozkN7mz1NRK_6qLPnmKbP10Rs=w485-h869-s-no-gm?authuser=0",
+          "art": "https://lh3.googleusercontent.com/pw/AP1GczN1dOvWeObz5cP3c-CpghmnWrgZdnXXSQ3LbivjUSlyjB_-tLjRwIf4Yq5-KeRif7GVItDeoZPo3ArGMQsV8yQBP0lg6M1MT20C-gRn3XZHb9AtOXejHJCBZaK-Kczm53yd5irrnDLX4CZb00hiS9Z1=w709-h1271-s-no-gm?authuser=0",
           "bg": "",
           "activationCond": {
             "name": "",
@@ -3082,7 +3082,7 @@
           ]
         },
         "Шаман": {
-          "art": "https://lh3.googleusercontent.com/pw/AP1GczN4wAgOQpJ0codw6OYMPBRUmey-56gSd_IP01u3VJO22C_Z92Nck5JPyD3Fv_4PwrQV-Uh24npTjTN6VoLCspZJOy-ducwMYy-0qJlliVpIhVRnglKCXMn3DB8LX3yn8gZ8WTnD2MMKyNvYFpS3a3jR=w485-h869-s-no-gm?authuser=0",
+          "art": "https://lh3.googleusercontent.com/pw/AP1GczN4wAgOQpJ0codw6OYMPBRUmey-56gSd_IP01u3VJO22C_Z92Nck5JPyD3Fv_4PwrQV-Uh24npTjTN6VoLCspZJOy-ducwMYy-0qLlliVpIhVRnglKCXMn3DB8LX3yn8gZ8WTnD2MMKyNvYFpS3a3jR=w709-h1271-s-no-gm?authuser=0",
           "bg": "",
           "activationCond": {
             "name": "",
@@ -3167,7 +3167,7 @@
           "availMagic": "wizard"
         },
         "Чародей": {
-          "art": "https://lh3.googleusercontent.com/pw/AP1GczPu6dNcdRKnovhoTjP3f4FdWOTBRbS4yc49BitWWz8HTzJLR-F2in_7mXiXIUcwWCM3um3uSz0FLRIztJA1gd6dXy1t9QTzOSHJyWIZklnyTlfOiWJeD_4CoDS1WGr35bYXnD2V=w485-h869-s-no-gm?authuser=0",
+          "art": "https://lh3.googleusercontent.com/pw/AP1GczPu6dNcdRKnovhoTjP3f4FdWOTBRbS4yc49BitWWz8HTzJLR-F2in_7mXiXIUcwWCM3um3uSd-DNsR1LZNiItjcYrvGY1t5Tq9PcbXjAnnhE5uOAe2p69pLYvQ72RpYAM9Xyfe2eAlBKwYdQ9INCN-t=w709-h1271-s-no-gm?authuser=0",
           "bg": "",
           "activationCond": {
             "name": "",
@@ -3230,8 +3230,8 @@
     "Человек": {
       "art": "",
       "raceBonus": {
-        "name": "",
-        "desc": ""
+        "name": "Приспособляемость",
+        "desc": "Люди невероятно живучи и способны привыкнуть к чему угодно...почти, поэтому они могут выбрать 2 владения и поднять куб их на 1 категорию, а одну другую уменьшить на 1 категорию. оглушение"
       },
       "subraces": {
         "Северный": {
