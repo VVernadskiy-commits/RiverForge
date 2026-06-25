@@ -3,7 +3,7 @@
 <head>
     <link rel="icon" href="public/icon-192.png" type="image/png">
     <meta charset="UTF-8">
-    <meta name="application-version" content="v0.6.2">
+    <meta name="application-version" content="v0.6.3">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RiverForge</title>
     <meta name="description" content="Цифровой лист персонажа и игровой справочник для НРИ">
@@ -1557,6 +1557,7 @@
         <div class="art-overlay-top-btns">
             <button class="art-overlay-btn del" onclick="deleteCurrentRune()">🗑</button>
             <button class="art-overlay-btn" onclick="replaceCurrentRune()">↻</button>
+            <button class="art-overlay-btn gear" onclick="openRuneSettings()">⚙</button>
         </div>
         <img id="runeViewImg" src="" alt="" style="width:100%;height:auto;max-height:100%;object-fit:contain;cursor:pointer;" onclick="closeRuneViewOverlay()">
     </div>
@@ -1624,6 +1625,15 @@
         <button onclick="closeEquipSettings()" class="modal-close-btn">&times;</button>
         <h3 id="equipSettingsTitle" style="color:#fca311;font-size:1.1em;margin:0 0 12px;border-bottom:1px solid rgba(252,163,17,0.25);padding-bottom:8px;">Настройки снаряжения</h3>
         <div id="equipSettingsList"></div>
+    </div>
+</div>
+
+<!-- НАСТРОЙКИ РУНЫ -->
+<div id="runeSettingsOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.78);display:flex;justify-content:center;align-items:center;z-index:10003;opacity:0;pointer-events:none;transition:opacity 0.25s ease;">
+    <div id="runeSettingsContent" style="background:#161920;border:2px solid #fca311;box-shadow:0 0 25px rgba(0,0,0,0.9),inset 0 0 15px rgba(252,163,17,0.05);border-radius:10px;max-width:300px;width:90%;padding:20px;color:#f0f0f0;position:relative;transform:scale(0.85);transition:transform 0.25s ease;" onclick="event.stopPropagation()">
+        <button onclick="closeRuneSettings()" class="modal-close-btn">&times;</button>
+        <div style="font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:#fca311;margin-bottom:14px;border-bottom:1px solid rgba(252,163,17,0.25);padding-bottom:8px;">Бонусы руны</div>
+        <div id="runeSettingsList"></div>
     </div>
 </div>
 
@@ -2381,7 +2391,8 @@
         var rt = currentPopupResource;
         var calc = d[RES_CALC_MAP[rt]] || 0;
         var extra = res[RES_EXTRA_MAP[rt]] || 0;
-        var full = calc + extra;
+        var runeBon = getRuneBonuses(char)[rt] || 0;
+        var full = calc + extra + runeBon;
         var cur = (res[rt] != null) ? Math.min(res[rt], full) : full;
         var col = STAT_COLORS[RES_NAME_MAP[rt]] || '#fca311';
         var s = makePopupPanelStyles(col);
@@ -2406,12 +2417,18 @@
               + '<span style="'+pill+'">'+calc+'</span>'
               + '<button style="'+btnH+'">+</button>'
             + '</div>'
-            + '<div style="'+grid+'border-bottom:1px solid rgba(255,255,255,0.07);padding-bottom:7px;margin-bottom:7px;">'
+            + '<div style="'+grid+(runeBon?'':'border-bottom:1px solid rgba(255,255,255,0.07);padding-bottom:7px;margin-bottom:7px;')+'">'
               + '<span style="'+lbl+'">дополнительное</span>'
               + '<button style="'+btn+'"'+clickExtra+'>−</button>'
               + '<span style="'+pillC+'"'+clickEditEx+'>'+extra+'</span>'
               + '<button style="'+btn+'"'+clickExtraP+'>+</button>'
             + '</div>'
+            + (runeBon ? '<div style="'+grid+'border-bottom:1px solid rgba(255,255,255,0.07);padding-bottom:7px;margin-bottom:7px;">'
+              + '<span style="'+lbl+'">руны</span>'
+              + '<button style="'+btnH+'">−</button>'
+              + '<span style="'+pill+'">'+runeBon+'</span>'
+              + '<button style="'+btnH+'">+</button>'
+            + '</div>' : '')
             + '<div style="display:grid;grid-template-columns:1fr 22px 60px 22px;align-items:center;gap:5px;">'
               + '<span style="'+lbl+'">полные</span>'
               + '<button style="'+btnH+'">−</button>'
@@ -2555,7 +2572,7 @@
         if (!char.resources) char.resources = {};
         var calc = d[RES_CALC_MAP[type]] || 0;
         var extra = char.resources[RES_EXTRA_MAP[type]] || 0;
-        var full = calc + extra;
+        var full = calc + extra + (getRuneBonuses(char)[type] || 0);
         var cur = (char.resources[type] != null) ? char.resources[type] : full;
         char.resources[type] = Math.max(0, Math.min(full, cur + delta));
         saveChars(chars);
@@ -2600,7 +2617,7 @@
             if (isNaN(v)) { el.textContent = current; return; }
             if (field === 'cur') {
                 var extra = char.resources[RES_EXTRA_MAP[type]] || 0;
-                var full = calc + extra;
+                var full = calc + extra + (getRuneBonuses(char)[type] || 0);
                 char.resources[type] = Math.min(full, Math.max(0, v));
             } else {
                 var minExtra = -(calc - 1);
@@ -3613,7 +3630,9 @@
             var eq = char.equipment[uploadCtx.equip];
             if (!eq) return;
             if (!eq.runes) eq.runes = [null,null,null,null,null];
-            eq.runes[uploadCtx.rune] = src;
+            var prevRune = eq.runes[uploadCtx.rune];
+            var prevObj = (prevRune && typeof prevRune === 'object') ? prevRune : {hp:0,energy:0,mana:0};
+            eq.runes[uploadCtx.rune] = {art:src, hp:prevObj.hp||0, energy:prevObj.energy||0, mana:prevObj.mana||0};
             saveChars(chars); renderEquipment(char);
             if (document.getElementById('equipOverlay').style.display !== 'none')
                 openEquipOverlay(uploadCtx.equip);
@@ -3887,6 +3906,7 @@
        openEquipOverlay(slotKey) / closeEquipOverlay() — полноэкранный вид слота
        replaceEquipArt() / deleteEquipArt() / toggleEquipItem(slotKey) — управление слотом
        openRuneView(slotKey, idx) / closeRuneView() / deleteRune(slotKey, idx) — руны */
+    function runeArt(r) { return (r && typeof r === 'object') ? (r.art || '') : (r || ''); }
     function renderEquipment(char) {
         var container = document.getElementById('charEquipSection');
         if (!container) return;
@@ -3900,7 +3920,7 @@
             if (eq.art) {
                 dots = runes.map(function(r,i) {
                     return r
-                        ? '<div class="equip-rune-dot" onclick="event.stopPropagation();openRuneView(\''+sl.key+'\','+i+')" style="cursor:pointer;"><img src="'+r+'" alt=""></div>'
+                        ? '<div class="equip-rune-dot" onclick="event.stopPropagation();openRuneView(\''+sl.key+'\','+i+')" style="cursor:pointer;"><img src="'+runeArt(r)+'" alt=""></div>'
                         : (currentCharIsOwner
                             ? '<div class="equip-rune-dot-empty" onclick="event.stopPropagation();showUploadModal(\'rune\',\''+sl.key+'\','+i+')">+</div>'
                             : '<div class="equip-rune-dot-empty" style="cursor:default;opacity:0.4;"></div>');
@@ -3956,7 +3976,7 @@
             + '</div>';
         document.getElementById('equipOverlayRunes').innerHTML = runes.map(function(r,i) {
             return r
-                ? '<div class="equip-overlay-rune-circle" onclick="openRuneView(\''+slotKey+'\','+i+')" title="Просмотр" style="cursor:pointer;"><img src="'+r+'" alt=""></div>'
+                ? '<div class="equip-overlay-rune-circle" onclick="openRuneView(\''+slotKey+'\','+i+')" title="Просмотр" style="cursor:pointer;"><img src="'+runeArt(r)+'" alt=""></div>'
                 : (currentCharIsOwner
                     ? '<div class="equip-overlay-rune-circle" onclick="showUploadModal(\'rune\',\''+slotKey+'\','+i+')" title="Добавить руну" style="cursor:pointer;">+</div>'
                     : '<div class="equip-overlay-rune-circle" style="opacity:0.25;cursor:default;"></div>');
@@ -4014,6 +4034,66 @@
        setEquipProp(slotKey, prop, value) — сохраняет eq[prop], обновляет статы
        changeEquipBonus / editEquipBonus — изменение/ручной ввод бонуса владения
        ARMOR_SLOT_KEYS / WEAPON_SLOT_KEYS — ключи типов слотов */
+    function getRuneBonuses(char) {
+        var hp = 0, energy = 0, mana = 0;
+        var eq = char.equipment || {};
+        Object.keys(eq).forEach(function(slot) {
+            if (eq[slot].equipped === false) return;
+            (eq[slot].runes || []).forEach(function(r) {
+                if (!r || typeof r !== 'object') return;
+                hp += r.hp || 0; energy += r.energy || 0; mana += r.mana || 0;
+            });
+        });
+        return {hp: hp, energy: energy, mana: mana};
+    }
+
+    function openRuneSettings() {
+        if (!requireOwner()) return;
+        var chars = loadChars(), char = chars.find(function(c){return c.id===currentCharId;});
+        if (!char || !currentEquipSlot || currentRuneIndex === null) return;
+        var eq = char.equipment[currentEquipSlot];
+        if (!eq) return;
+        var r = eq.runes[currentRuneIndex];
+        var rObj = (r && typeof r === 'object') ? r : {art: runeArt(r), hp:0, energy:0, mana:0};
+        var attrs = [
+            {key:'hp',    label:'Здоровье', col:'#da3434'},
+            {key:'energy',label:'Энергия',  col:'#fca311'},
+            {key:'mana',  label:'Мана',     col:'#7b4fcf'}
+        ];
+        var btnS = 'background:#2a2e3a;border:1px solid #4f546c;color:#f0f0f0;border-radius:6px;width:26px;height:26px;font-size:16px;line-height:1;cursor:pointer;';
+        var valS = 'min-width:40px;text-align:center;font-size:14px;font-weight:600;';
+        document.getElementById('runeSettingsList').innerHTML = attrs.map(function(a) {
+            var v = rObj[a.key] || 0;
+            return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">'
+                + '<span style="flex:1;color:'+a.col+';font-size:13px;">'+a.label+'</span>'
+                + '<button style="'+btnS+'" onclick="changeRuneBonus(\''+a.key+'\',-1)">−</button>'
+                + '<span id="runeBonusVal_'+a.key+'" style="'+valS+'">'+v+'</span>'
+                + '<button style="'+btnS+'" onclick="changeRuneBonus(\''+a.key+'\',1)">+</button>'
+                + '</div>';
+        }).join('');
+        var ov = document.getElementById('runeSettingsOverlay');
+        ov.style.opacity = '1'; ov.style.pointerEvents = 'auto';
+        document.getElementById('runeSettingsContent').style.transform = 'scale(1)';
+    }
+
+    function closeRuneSettings() { closeModalOverlay('runeSettingsOverlay', 'runeSettingsContent'); }
+
+    function changeRuneBonus(attrKey, delta) {
+        if (!requireOwner()) return;
+        var chars = loadChars(), char = chars.find(function(c){return c.id===currentCharId;});
+        if (!char || !currentEquipSlot || currentRuneIndex === null) return;
+        var eq = char.equipment[currentEquipSlot];
+        if (!eq) return;
+        var r = eq.runes[currentRuneIndex];
+        var rObj = (r && typeof r === 'object') ? Object.assign({}, r) : {art: runeArt(r), hp:0, energy:0, mana:0};
+        rObj[attrKey] = (rObj[attrKey] || 0) + delta;
+        eq.runes[currentRuneIndex] = rObj;
+        saveChars(chars);
+        var el = document.getElementById('runeBonusVal_' + attrKey);
+        if (el) el.textContent = rObj[attrKey];
+        if (currentPopupResource) renderResourcePanel();
+    }
+
     function openEquipSettings() {
         if (!requireOwner()) return;
         if (!currentEquipSlot) return;
@@ -4162,7 +4242,7 @@
         if (!runes || !runes[runeIdx]) return;
         currentEquipSlot = slotKey;
         currentRuneIndex = runeIdx;
-        document.getElementById('runeViewImg').src = runes[runeIdx];
+        document.getElementById('runeViewImg').src = runeArt(runes[runeIdx]);
         document.getElementById('runeViewOverlay').style.display = 'flex';
     }
 
