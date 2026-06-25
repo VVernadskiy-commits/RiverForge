@@ -1,4 +1,5 @@
 {
+  "uploadUrl": "https://riverforge-upload.riverforge.workers.dev",
   "statTypes": {
     "сноровка": "владение",
     "скрытность": "владение",

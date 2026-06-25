@@ -888,6 +888,12 @@
             padding: 10px 14px; border-radius: 6px; background: #fca311;
             border: none; color: #111; font-weight: bold; cursor: pointer; font-size: 15px;
         }
+        .upload-device-btn {
+            padding: 10px; border-radius: 8px; background: #2e3148;
+            border: 1px solid #4f546c; color: #d0d2e0; cursor: pointer; font-size: 14px;
+            width: 100%; text-align: center;
+        }
+        .upload-device-btn:hover { background: #363a58; }
         .upload-cancel {
             padding: 10px; border-radius: 8px; background: none;
             border: 1px solid #4f546c; color: #8a8d9a; cursor: pointer; font-size: 14px;
@@ -1347,6 +1353,8 @@
         body.light-theme .upload-box-title { color: #111118; }
         body.light-theme .upload-url-input { background: #e8e8f0; color: #111118; border-color: #c0c0cc; }
         body.light-theme .upload-url-input::placeholder { color: #9090a8; }
+        body.light-theme .upload-device-btn { background: #e0e0ea; color: #111118; border-color: #c0c0cc; }
+        body.light-theme .upload-device-btn:hover { background: #d0d0de; }
         body.light-theme .upload-cancel { background: #e0e0ea; color: #111118; border-color: #c0c0cc; }
     </style>
 </head>
@@ -3018,6 +3026,24 @@
     var SUBRACES = {};
     var MIGRATION_MAP = {};
 
+    var UPLOAD_URL = '';
+
+    function uploadViaWorker(dataUrl, onSuccess, onError, name) {
+        if (!UPLOAD_URL) { onError && onError('no_worker_url'); return; }
+        showSaveStatus('Загрузка…', true);
+        fetch(UPLOAD_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image: dataUrl, name: name || 'img' })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(j) {
+            if (j.success && j.link) { onSuccess(j.link); }
+            else { showSaveStatus('Ошибка загрузки', false); onError && onError(j); }
+        })
+        .catch(function(e) { showSaveStatus('Нет соединения', false); onError && onError(e); });
+    }
+
     /* ── LocalStorage: персонажи ─────────────────────────────────────────────────
        loadChars() / saveChars(arr) — сериализуют массив персонажей
        applyMigrations(chars) — переименовывает устаревшие cls/spec/race/subrace */
@@ -3654,15 +3680,26 @@
         }
     }
 
+    function makeImgName(ctx, suffix) {
+        var id = currentCharId || 'x';
+        if (ctx.type === 'portrait') return 'char_' + id + '_portrait' + (suffix ? '_' + suffix : '');
+        if (ctx.type === 'equip')    return 'char_' + id + '_equip_' + (ctx.equip || 'slot');
+        if (ctx.type === 'rune')     return 'char_' + id + '_rune_' + (ctx.equip || 'slot') + '_' + (ctx.rune != null ? ctx.rune : 0);
+        return 'char_' + id;
+    }
+
     function handleUniversalUpload(event) {
         var file = event.target.files[0]; if (!file) return;
+        var ctx = {type: uploadCtx.type, equip: uploadCtx.equip, rune: uploadCtx.rune};
         var reader = new FileReader();
         reader.onload = function(e) {
             var src = e.target.result;
-            if (uploadCtx.type === 'portrait') {
+            if (ctx.type === 'portrait') {
                 showCropModal(src);
+            } else if (UPLOAD_URL) {
+                uploadViaWorker(src, function(url) { saveImageData(url, ctx); }, null, makeImgName(ctx));
             } else {
-                saveImageData(src);
+                saveImageData(src, ctx);
             }
         };
         reader.readAsDataURL(file);
@@ -3671,28 +3708,29 @@
 
     /* ── Сохранение изображения в слот ─────────────────────────────────────────
        saveImageData(src) — записывает src в char.photo, equipment[slot].art или runes[idx] */
-    function saveImageData(src) {
+    function saveImageData(src, ctx) {
+        ctx = ctx || uploadCtx;
         var chars = loadChars(), char = chars.find(function(c){return c.id===currentCharId;});
         if (!char) return;
-        if (uploadCtx.type === 'portrait') {
+        if (ctx.type === 'portrait') {
             char.photo = src;
             saveChars(chars); renderCharDetail(char); renderCharacterList();
-        } else if (uploadCtx.type === 'equip') {
+        } else if (ctx.type === 'equip') {
             if (!char.equipment) char.equipment = defaultEquipment();
-            if (!char.equipment[uploadCtx.equip]) char.equipment[uploadCtx.equip] = {art:null,runes:[null,null,null,null,null]};
-            char.equipment[uploadCtx.equip].art = src;
+            if (!char.equipment[ctx.equip]) char.equipment[ctx.equip] = {art:null,runes:[null,null,null,null,null]};
+            char.equipment[ctx.equip].art = src;
             saveChars(chars); renderEquipment(char);
-        } else if (uploadCtx.type === 'rune') {
+        } else if (ctx.type === 'rune') {
             if (!char.equipment) char.equipment = defaultEquipment();
-            var eq = char.equipment[uploadCtx.equip];
+            var eq = char.equipment[ctx.equip];
             if (!eq) return;
             if (!eq.runes) eq.runes = [null,null,null,null,null];
-            var prevRune = eq.runes[uploadCtx.rune];
+            var prevRune = eq.runes[ctx.rune];
             var prevObj = (prevRune && typeof prevRune === 'object') ? prevRune : {hp:0,energy:0,mana:0};
-            eq.runes[uploadCtx.rune] = {art:src, hp:prevObj.hp||0, energy:prevObj.energy||0, mana:prevObj.mana||0};
+            eq.runes[ctx.rune] = {art:src, hp:prevObj.hp||0, energy:prevObj.energy||0, mana:prevObj.mana||0};
             saveChars(chars); renderEquipment(char);
             if (document.getElementById('equipOverlay').style.display !== 'none')
-                openEquipOverlay(uploadCtx.equip);
+                openEquipOverlay(ctx.equip);
         }
     }
 
@@ -3846,7 +3884,22 @@
             var result = canvas.toDataURL('image/jpeg', 0.88);
             closeCropModal();
             var chars = loadChars(), char = chars.find(function(c){return c.id===currentCharId;});
-            if (char) { char.photo = result; char.photoSrc = orig; char.photoCrop = null; saveChars(chars); renderCharDetail(char); renderCharacterList(); }
+            if (!char) return;
+            if (UPLOAD_URL) {
+                var portraitCtx = {type:'portrait'};
+                uploadViaWorker(result, function(cropUrl) {
+                    uploadViaWorker(orig, function(origUrl) {
+                        char.photo = cropUrl; char.photoSrc = origUrl; char.photoCrop = null;
+                        saveChars(chars); renderCharDetail(char); renderCharacterList();
+                    }, function() {
+                        char.photo = cropUrl; char.photoSrc = cropUrl; char.photoCrop = null;
+                        saveChars(chars); renderCharDetail(char); renderCharacterList();
+                    }, makeImgName(portraitCtx, 'orig'));
+                }, null, makeImgName(portraitCtx));
+            } else {
+                char.photo = result; char.photoSrc = orig; char.photoCrop = null;
+                saveChars(chars); renderCharDetail(char); renderCharacterList();
+            }
         } catch(err) {
             var crop = {relX: relX, relY: relY, dispW: dispW, dispH: dispH};
             closeCropModal();
@@ -5416,6 +5469,7 @@
             ALL_KHAR     = cfgData.allKhar;
             EQUIP_SLOTS  = cfgData.equipSlots;
             MIGRATION_MAP = cfgData.migrationMap || {};
+            UPLOAD_URL = cfgData.uploadUrl || '';
             var _gl = (cfgData.appearance || {}).glossary || {};
             if (_gl.badgeDark)  BADGE_DARK  = _gl.badgeDark;
             if (_gl.badgeLight) BADGE_LIGHT = _gl.badgeLight;
@@ -5905,6 +5959,7 @@
             <input type="url" id="urlInput" class="upload-url-input" placeholder="https://example.com/image.jpg">
             <button class="upload-url-go" onclick="handleUrlInput()">→</button>
         </div>
+        <button class="upload-device-btn" onclick="document.getElementById('universalFileInput').click();closeUploadModal();">Загрузить с устройства</button>
         <button class="upload-cancel" onclick="closeUploadModal()">Отмена</button>
     </div>
 </div>
