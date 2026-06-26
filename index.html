@@ -3,7 +3,7 @@
 <head>
     <link rel="icon" href="/RiverForge/public/icon-192.png" type="image/png">
     <meta charset="UTF-8">
-    <meta name="application-version" content="v0.7.0">
+    <meta name="application-version" content="v0.7.1">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RiverForge</title>
     <meta name="description" content="Цифровой лист персонажа и игровой справочник для НРИ">
@@ -1407,9 +1407,12 @@
                 <span class="t-icon t-sun">☀️</span>
             </div>
         </div>
-        <div id="devOwnerSection" style="display:none;padding:12px 18px;border-top:1px solid #2d3142;">
+        <div id="devOwnerSection" style="display:none;padding:12px 18px;border-top:1px solid #2d3142;flex-direction:column;gap:6px;">
             <button id="devOwnerBtn" onclick="toggleDevOwner()" style="width:100%;padding:8px 12px;border-radius:8px;border:1px solid #4f546c;background:rgba(255,255,255,0.05);color:#a3a6b5;font-size:12px;cursor:pointer;transition:all 0.15s;">
                 🔒 Режим владельца: ВЫКЛ
+            </button>
+            <button id="adminPanelBtn" onclick="openAdminPanel()" style="width:100%;padding:8px 12px;border-radius:8px;border:1px solid rgba(255,77,77,0.4);background:rgba(255,77,77,0.08);color:#ff4d4d;font-size:12px;cursor:pointer;transition:all 0.15s;">
+                ⚙ Модерация
             </button>
         </div>
         <div class="drawer-footer" id="drawerVersion">RiverForge</div>
@@ -1490,7 +1493,6 @@
     <div class="screen" id="screen-character">
         <div class="screen-header" style="justify-content:space-between;">
             <span>Персонажи</span>
-            <button id="adminPanelBtn" onclick="openAdminPanel()" style="display:none;background:rgba(255,77,77,0.12);border:1px solid rgba(255,77,77,0.4);color:#ff4d4d;padding:4px 10px;border-radius:6px;font-size:12px;cursor:pointer;align-items:center;gap:4px;">⚙ Модерация</button>
             <button class="char-add-btn" onclick="addNewCharacter()">+ Добавить</button>
         </div>
         <div class="scrollable-content" id="character-list-container"></div>
@@ -5514,7 +5516,7 @@
         var _host = window.location.hostname;
         if (_host === 'localhost' || _host === '127.0.0.1') {
             var sec = document.getElementById('devOwnerSection');
-            if (sec) sec.style.display = 'block';
+            if (sec) sec.style.display = 'flex';
         }
         try {
             var results = await Promise.all([
@@ -5787,9 +5789,7 @@
             var serverChars = Array.isArray(data) ? data : (data.chars || []);
             _isAdmin = !Array.isArray(data) && !!data.is_admin;
             var sec = document.getElementById('devOwnerSection');
-            if (sec && _isAdmin) sec.style.display = 'block';
-            var adminPanelBtn = document.getElementById('adminPanelBtn');
-            if (adminPanelBtn) adminPanelBtn.style.display = _isAdmin ? 'flex' : 'none';
+            if (sec && _isAdmin) sec.style.display = 'flex';
             var local = loadChars();
             var localOnly = local.filter(function(c) { return !c.owner_id; });
             var starMap = {};
@@ -6094,9 +6094,15 @@
     var _adminCurrentTab = 'users';
     var _adminUsers = [];
 
+    var _isLocalhost = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
     function openAdminPanel() {
         var ov = document.getElementById('adminPanelOverlay');
         ov.style.display = 'flex';
+        if (_isLocalhost && !_isAdmin) {
+            document.getElementById('adminPanelBody').innerHTML = '<div style="text-align:center;padding:30px;color:#fca311;">⚠ Локальный режим<br><span style="font-size:12px;color:#8a8d9a;margin-top:8px;display:block;">Панель работает только после входа через Discord с правами администратора.</span></div>';
+            return;
+        }
         switchAdminTab('users');
     }
 
@@ -6118,7 +6124,7 @@
 
     async function loadAdminUsers() {
         var body = document.getElementById('adminPanelBody');
-        body.innerHTML = '<div style="color:#8a8d9a;text-align:center;padding:30px;">Загрузка...</div>';
+        body.innerHTML = '<div style="color:var(--text-muted);text-align:center;padding:30px;">Загрузка...</div>';
         try {
             var token = localStorage.getItem('rf_token');
             var res = await fetch(WORKER_URL + '/admin/users', { headers: { 'Authorization': 'Bearer ' + token } });
@@ -6130,11 +6136,11 @@
 
     function renderAdminUsers() {
         var body = document.getElementById('adminPanelBody');
-        if (!_adminUsers.length) { body.innerHTML = '<div style="color:#8a8d9a;text-align:center;padding:30px;">Нет игроков</div>'; return; }
+        if (!_adminUsers.length) { body.innerHTML = '<div style="color:var(--text-muted);text-align:center;padding:30px;">Нет игроков</div>'; return; }
         var isSuperAdminUser = _adminUsers.find(function(u) { return u.is_super; });
         body.innerHTML = _adminUsers.map(function(u) {
             var avatarUrl = u.avatar ? 'https://cdn.discordapp.com/avatars/'+u.discord_id+'/'+u.avatar+'.png?size=32' : '';
-            var avatarHtml = avatarUrl ? '<img src="'+avatarUrl+'" style="width:32px;height:32px;border-radius:50%;flex-shrink:0;">' : '<div style="width:32px;height:32px;border-radius:50%;background:#2a2d38;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;">👤</div>';
+            var avatarHtml = avatarUrl ? '<img src="'+avatarUrl+'" style="width:32px;height:32px;border-radius:50%;flex-shrink:0;">' : '<div style="width:32px;height:32px;border-radius:50%;background:rgba(128,128,128,0.15);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;">👤</div>';
             var badges = '';
             if (u.is_super) badges += '<span style="font-size:10px;background:rgba(252,163,17,0.2);border:1px solid #fca311;color:#fca311;border-radius:4px;padding:1px 5px;">СУПЕР</span> ';
             else if (u.is_admin) badges += '<span style="font-size:10px;background:rgba(0,191,255,0.15);border:1px solid #00bfff;color:#00bfff;border-radius:4px;padding:1px 5px;">АДМИН</span> ';
@@ -6151,16 +6157,16 @@
                     if (!u.is_admin) {
                         actions += '<button onclick="adminGrant(\''+u.discord_id+'\')" style="background:rgba(0,191,255,0.1);border:1px solid rgba(0,191,255,0.4);color:#00bfff;padding:3px 8px;border-radius:5px;font-size:11px;cursor:pointer;">+ Админ</button> ';
                     } else {
-                        actions += '<button onclick="adminRevoke(\''+u.discord_id+'\')" style="background:rgba(255,255,255,0.05);border:1px solid #4f546c;color:#a3a6b5;padding:3px 8px;border-radius:5px;font-size:11px;cursor:pointer;">− Админ</button> ';
+                        actions += '<button onclick="adminRevoke(\''+u.discord_id+'\')" style="background:rgba(128,128,128,0.06);border:1px solid rgba(128,128,128,0.3);color:var(--text-muted);padding:3px 8px;border-radius:5px;font-size:11px;cursor:pointer;">− Админ</button> ';
                     }
                 }
-                actions += '<button onclick="adminForceLogout(\''+u.discord_id+'\')" style="background:rgba(255,255,255,0.04);border:1px solid #4f546c;color:#6c757d;padding:3px 8px;border-radius:5px;font-size:11px;cursor:pointer;">Выход</button>';
+                actions += '<button onclick="adminForceLogout(\''+u.discord_id+'\')" style="background:rgba(128,128,128,0.04);border:1px solid rgba(128,128,128,0.25);color:var(--text-muted);padding:3px 8px;border-radius:5px;font-size:11px;cursor:pointer;">Выход</button>';
             }
-            return '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #2d3142;">'
+            return '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(128,128,128,0.15);">'
                 + avatarHtml
                 + '<div style="flex:1;min-width:0;">'
-                + '<div style="font-size:13px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+escapeHTML(u.username)+' '+badges+'</div>'
-                + '<div style="font-size:11px;color:#6c757d;">ID: '+u.discord_id+' · '+lastSeen+'</div>'
+                + '<div style="font-size:13px;font-weight:600;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+escapeHTML(u.username)+' '+badges+'</div>'
+                + '<div style="font-size:11px;color:var(--text-muted);">ID: '+u.discord_id+' · '+lastSeen+'</div>'
                 + (u.ban_info ? '<div style="font-size:11px;color:#ff6b6b;">Причина: '+escapeHTML(u.ban_info.reason||'')+'</div>' : '')
                 + '</div>'
                 + '<div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;">'+actions+'</div>'
@@ -6218,22 +6224,22 @@
 
     async function loadAdminLog() {
         var body = document.getElementById('adminPanelBody');
-        body.innerHTML = '<div style="color:#8a8d9a;text-align:center;padding:30px;">Загрузка...</div>';
+        body.innerHTML = '<div style="color:var(--text-muted);text-align:center;padding:30px;">Загрузка...</div>';
         try {
             var token = localStorage.getItem('rf_token');
             var res = await fetch(WORKER_URL + '/admin/mod-log', { headers: { 'Authorization': 'Bearer ' + token } });
             if (!res.ok) { body.innerHTML = '<div style="color:#ff4d4d;padding:20px;">Ошибка доступа</div>'; return; }
             var log = await res.json();
-            if (!log.length) { body.innerHTML = '<div style="color:#8a8d9a;text-align:center;padding:30px;">Лог пуст</div>'; return; }
+            if (!log.length) { body.innerHTML = '<div style="color:var(--text-muted);text-align:center;padding:30px;">Лог пуст</div>'; return; }
             var actionLabels = { ban:'🚫 Бан', unban:'✅ Разбан', grant_admin:'👑 Выдача прав', revoke_admin:'🔻 Снятие прав', force_logout:'🔒 Принуд. выход', transfer_char:'🔄 Передача персонажа' };
             var exportBtn = '<button onclick="exportAdminLog()" style="width:100%;margin-bottom:12px;background:rgba(0,191,255,0.1);border:1px solid rgba(0,191,255,0.4);color:#00bfff;padding:6px;border-radius:6px;font-size:12px;cursor:pointer;">⬇ Экспорт JSON</button>';
             body.innerHTML = exportBtn + log.map(function(e) {
                 var d = new Date(e.ts).toLocaleString('ru-RU');
                 var label = actionLabels[e.action] || e.action;
-                return '<div style="padding:8px 0;border-bottom:1px solid #2d3142;font-size:12px;">'
-                    + '<div style="color:#a3a6b5;">'+d+'</div>'
-                    + '<div style="color:#fff;margin-top:2px;"><b>'+label+'</b>: <span style="color:#fca311;">'+escapeHTML(e.target_name||e.target_id)+'</span></div>'
-                    + '<div style="color:#8a8d9a;">Выполнил: '+escapeHTML(e.by_name||e.by_id)+(e.reason?' · Причина: '+escapeHTML(e.reason):'')+'</div>'
+                return '<div style="padding:8px 0;border-bottom:1px solid rgba(128,128,128,0.15);font-size:12px;">'
+                    + '<div style="color:var(--text-muted);">'+d+'</div>'
+                    + '<div style="color:var(--text-main);margin-top:2px;"><b>'+label+'</b>: <span style="color:#fca311;">'+escapeHTML(e.target_name||e.target_id)+'</span></div>'
+                    + '<div style="color:var(--text-muted);">Выполнил: '+escapeHTML(e.by_name||e.by_id)+(e.reason?' · Причина: '+escapeHTML(e.reason):'')+'</div>'
                     + '</div>';
             }).join('');
             body._logData = log;
@@ -6311,17 +6317,17 @@
 
 <!-- ПАНЕЛЬ МОДЕРАЦИИ -->
 <div id="adminPanelOverlay" onclick="closeAdminPanel()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.82);z-index:20000;align-items:flex-start;justify-content:center;padding-top:40px;">
-    <div onclick="event.stopPropagation()" style="background:#161920;border:2px solid rgba(255,77,77,0.4);border-radius:12px;width:min(520px,96vw);max-height:80vh;display:flex;flex-direction:column;overflow:hidden;">
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #2d3142;">
+    <div onclick="event.stopPropagation()" style="background:var(--card-bg);border:2px solid rgba(255,77,77,0.4);border-radius:12px;width:min(520px,96vw);max-height:80vh;display:flex;flex-direction:column;overflow:hidden;">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid rgba(128,128,128,0.2);">
             <span style="font-size:15px;font-weight:700;color:#ff4d4d;">⚙ Панель модерации</span>
             <div style="display:flex;gap:8px;">
                 <button id="adminTabUsers" onclick="switchAdminTab('users')" style="background:rgba(255,77,77,0.18);border:1px solid rgba(255,77,77,0.5);color:#ff4d4d;padding:4px 12px;border-radius:6px;font-size:12px;cursor:pointer;">Игроки</button>
-                <button id="adminTabLog" onclick="switchAdminTab('log')" style="background:rgba(255,255,255,0.05);border:1px solid #4f546c;color:#a3a6b5;padding:4px 12px;border-radius:6px;font-size:12px;cursor:pointer;">Лог</button>
-                <button onclick="closeAdminPanel()" style="background:none;border:none;color:#8a8d9a;font-size:20px;cursor:pointer;line-height:1;padding:0 4px;">&times;</button>
+                <button id="adminTabLog" onclick="switchAdminTab('log')" style="background:rgba(128,128,128,0.08);border:1px solid rgba(128,128,128,0.3);color:var(--text-muted);padding:4px 12px;border-radius:6px;font-size:12px;cursor:pointer;">Лог</button>
+                <button onclick="closeAdminPanel()" style="background:none;border:none;color:var(--text-muted);font-size:20px;cursor:pointer;line-height:1;padding:0 4px;">&times;</button>
             </div>
         </div>
         <div id="adminPanelBody" style="overflow-y:auto;flex:1;padding:14px 18px;">
-            <div style="color:#8a8d9a;text-align:center;padding:30px;">Загрузка...</div>
+            <div style="color:var(--text-muted);text-align:center;padding:30px;">Загрузка...</div>
         </div>
     </div>
 </div>
