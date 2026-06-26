@@ -3,7 +3,7 @@
 <head>
     <link rel="icon" href="/RiverForge/public/icon-192.png" type="image/png">
     <meta charset="UTF-8">
-    <meta name="application-version" content="v0.7.4">
+    <meta name="application-version" content="v0.7.5">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RiverForge</title>
     <meta name="description" content="Цифровой лист персонажа и игровой справочник для НРИ">
@@ -3753,6 +3753,11 @@
 
     function handleUniversalUpload(event) {
         var file = event.target.files[0]; if (!file) return;
+        if (file.size > 10 * 1024 * 1024) {
+            showToast('Файл слишком большой — максимум 10 МБ');
+            event.target.value = '';
+            return;
+        }
         var ctx = {type: uploadCtx.type, equip: uploadCtx.equip, rune: uploadCtx.rune};
         var reader = new FileReader();
         reader.onload = function(e) {

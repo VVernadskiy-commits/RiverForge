@@ -37,20 +37,18 @@ export default {
     }
 
     const charId   = body.char_id ? String(body.char_id) : 'shared';
-    const folder   = 'characters/' + charId;
     const fileName = (body.name || 'img').slice(0, 64).replace(/[^a-zA-Z0-9_\-]/g, '_');
-    const publicId = folder + '/' + fileName;
+    const publicId = 'characters/' + charId + '/' + fileName;
     const timestamp = Math.floor(Date.now() / 1000);
 
-    // SHA-1 подпись: параметры в алфавитном порядке + API Secret
-    const paramsToSign = 'folder=' + folder + '&public_id=' + publicId + '&timestamp=' + timestamp;
+    // SHA-1 подпись: только public_id и timestamp (алфавитный порядок: p < t)
+    const paramsToSign = 'public_id=' + publicId + '&timestamp=' + timestamp;
     const signature = await sha1(paramsToSign + env.CLOUDINARY_API_SECRET);
 
     const form = new FormData();
     form.append('file',      dataUrl);
     form.append('api_key',   env.CLOUDINARY_API_KEY);
     form.append('timestamp', String(timestamp));
-    form.append('folder',    folder);
     form.append('public_id', publicId);
     form.append('signature', signature);
 
