@@ -1,0 +1,2298 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RiverForge Editor</title>
+<link rel="icon" href="icon-192.png" type="image/png">
+<style>
+:root{
+  --bg:#f1f5f9;--surface:#fff;--surface2:#f8fafc;--border:#e2e8f0;
+  --text:#1e293b;--muted:#64748b;--accent:#3b82f6;--accent-h:#2563eb;--accent-rgb:59,130,246;
+  --danger:#ef4444;--success:#22c55e;
+  --sh:0 1px 3px rgba(0,0,0,.1),0 1px 2px rgba(0,0,0,.06);
+  --sh-lg:0 10px 25px rgba(0,0,0,.12);
+}
+[data-theme=dark]{
+  --bg:#0f172a;--surface:#1e293b;--surface2:#334155;--border:#475569;
+  --text:#f1f5f9;--muted:#94a3b8;--accent:#60a5fa;--accent-h:#93c5fd;--accent-rgb:96,165,250;
+  --danger:#f87171;--success:#4ade80;
+  --sh:0 1px 3px rgba(0,0,0,.4);--sh-lg:0 10px 25px rgba(0,0,0,.5);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);font-size:14px;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+/* ── Шапка ─────────────────────────────────────────────────────────
+   #hdr: логотип + кнопки скачивания + разделители + toggle темы */
+#hdr{display:flex;align-items:center;gap:10px;padding:9px 16px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;box-shadow:var(--sh)}
+#hdr-logo{display:flex;align-items:center;gap:8px;font-weight:700;font-size:15px}
+#hdr-logo img{width:26px;height:26px;border-radius:5px}
+.spacer{flex:1}
+.vd{width:1px;height:20px;background:var(--border);flex-shrink:0}
+
+/* ── Кнопки (.btn / .btn-p акцент / .btn-d опасность / .btn-sm / .btn-icon) ── */
+.btn{padding:6px 12px;border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:6px;cursor:pointer;font-size:13px;font-family:inherit;transition:all .15s;display:inline-flex;align-items:center;gap:5px}
+.btn:hover{background:var(--surface2);border-color:var(--accent);color:var(--accent)}
+.btn-p{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn-p:hover{background:var(--accent-h);border-color:var(--accent-h);color:#fff}
+.btn-d{background:var(--danger);color:#fff;border-color:var(--danger)}
+.btn-d:hover{opacity:.85;color:#fff}
+.btn-sm{padding:3px 9px;font-size:12px}
+.btn-icon{padding:5px;border:none;background:transparent;cursor:pointer;color:var(--muted);border-radius:5px;font-size:14px;line-height:1;transition:all .1s}
+.btn-icon:hover{background:var(--surface2);color:var(--danger)}
+
+/* ── Переключатель темы (slider-knob, иконки луны/солнца) ── */
+.theme-toggle{width:54px;height:28px;border-radius:14px;background:#6c6874;position:relative;cursor:pointer;flex-shrink:0;transition:background .25s}
+.t-knob{position:absolute;width:22px;height:22px;border-radius:50%;background:#38408a;top:50%;transform:translateY(-50%);left:3px;transition:left .28s ease,background .28s;box-shadow:0 2px 7px rgba(0,0,0,.55);pointer-events:none}
+.t-moon,.t-sun{position:absolute;top:0;bottom:0;display:flex;align-items:center;justify-content:center;font-size:13px;pointer-events:none;user-select:none;transition:opacity .2s}
+.t-moon{right:5px;left:auto;width:16px;opacity:1}
+.t-sun{left:5px;width:16px;opacity:0}
+.theme-toggle.on .t-knob{left:29px;background:#ffc840;box-shadow:0 2px 10px rgba(255,200,60,.5)}
+.theme-toggle.on .t-moon{opacity:0}
+.theme-toggle.on .t-sun{opacity:1}
+
+/* ── Вкладки (#tabs, .tab) ── */
+#tabs{display:flex;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0}
+.tab{padding:10px 16px;cursor:pointer;white-space:nowrap;color:var(--muted);font-size:13px;border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .15s}
+.tab:hover{color:var(--text)}
+.tab.on{color:var(--accent);border-color:var(--accent);font-weight:600}
+
+/* ── Основная область (#ct) — прокрутка, отступы ── */
+#ct{flex:1;overflow-y:auto;padding:16px}
+
+/* ── Секции категорий (.cat-sec / .cat-hdr / drag-over) ── */
+.cat-sec{margin-bottom:20px}
+.cat-hdr{display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--surface);border:1px solid var(--border);border-radius:7px 7px 0 0;border-bottom:none;user-select:none}
+.cat-hdr-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.cat-hdr-name{font-weight:600;font-size:14px;flex:1}
+.cat-sec-drag-over .cat-hdr{border-top:3px solid var(--accent)}
+
+/* ── Таблица данных (.tbl-data, th::after разделители, .cr ресайз) ── */
+.tbl-wrap{background:var(--surface);border-radius:0 0 8px 8px;box-shadow:var(--sh);overflow-x:auto;overflow-y:hidden;border:1px solid var(--border)}
+.cat-sec .tbl-wrap{margin-top:0}
+table{width:100%;border-collapse:collapse;font-size:13px}
+.tbl-data{table-layout:fixed}
+thead{background:var(--surface2)}
+th{text-align:left;padding:9px 11px;font-weight:600;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border);position:relative;white-space:nowrap;overflow:hidden;user-select:none}
+th::after{content:'';position:absolute;right:4px;top:10%;height:80%;width:1px;background:var(--border);pointer-events:none}
+.tbl-data thead th:first-child::after,#gl-tbl thead th:first-child::after{display:none}
+thead th:last-child::after,thead th:nth-last-child(2)::after{display:none}
+th:last-child::after{display:none}
+.cr{position:absolute;right:0;top:0;bottom:0;width:4px;cursor:col-resize;background:transparent;z-index:1}
+.cr:hover,.cr.act{background:var(--accent)}
+td{padding:6px 11px;border-bottom:1px solid var(--border);vertical-align:middle;overflow:hidden}
+tr:last-child td{border-bottom:none}
+tbody tr{transition:background .1s}
+tbody tr:hover td{background:var(--surface2)}
+tbody tr.drag-over-top td{border-top:2px solid var(--accent)}
+.dh-row{color:var(--muted);font-size:15px;cursor:grab;opacity:.3;line-height:1;display:block}
+tbody tr:hover .dh-row{opacity:.7}
+.row-dropzone{height:22px;}
+.row-dropzone:hover td,.row-dropzone td{background:transparent!important;border:none!important;}
+.row-dropzone.drag-over-top td{border-top:2px solid var(--accent)!important;}
+.td-hl{color:var(--muted);font-size:12px;line-height:1.4;cursor:text;white-space:normal;}
+.td-hl:hover{color:var(--text)}
+.td-hl:empty::before{content:'—';opacity:.3}
+.td-hl strong{color:var(--accent);font-weight:600}
+.td-hl-ta{width:100%;background:var(--surface);border:1px solid var(--accent);border-radius:4px;color:var(--text);font-size:12px;font-family:inherit;font-weight:inherit;line-height:1.4;padding:5px 7px;resize:none;outline:none;box-sizing:border-box;display:block;}
+
+/* ── Редактируемые ячейки (.ci — числа/текст, .cs — select) ── */
+.ci{border:none;border-bottom:1px solid transparent;background:transparent;color:inherit;font:inherit;width:100%;padding:1px 0;outline:none;transition:border-color .15s;-moz-appearance:textfield}
+.ci::-webkit-inner-spin-button{display:none}
+tr:hover .ci{border-bottom-color:var(--border)}
+.ci:focus{border-bottom-color:var(--accent)!important}
+.cs{border:none;border-bottom:1px solid transparent;background:transparent;color:inherit;font:inherit;width:100%;padding:1px 0;outline:none;cursor:pointer;transition:border-color .15s}
+tr:hover .cs{border-bottom-color:var(--border)}
+.cs:focus{border-bottom-color:var(--accent)!important}
+.cs option,.cfg-sel option,select option{background:var(--surface2);color:var(--text)}
+
+/* ── Pill-селектор классов/рас (.pills-bar / .pill) ── */
+.pills-bar{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:14px}
+.pill{padding:5px 13px;border-radius:20px;border:1px solid var(--border);font-size:13px;cursor:pointer;background:var(--surface);color:var(--muted);user-select:none;transition:all .15s}
+.pill:hover{border-color:var(--accent);color:var(--accent)}
+.pill.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+/* ── Конфиг-панели (.panel / .csel кастомный select / .cfg-* / .ap-*) ── */
+.panel{background:var(--surface);border-radius:8px;box-shadow:var(--sh);padding:16px;margin-bottom:14px}
+.panel h3{font-size:14px;font-weight:600;margin-bottom:8px;padding-bottom:4px;display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none}
+.panel h3:hover{color:var(--accent)}
+.panel h3 .ph-arr{font-size:10px;margin-right:2px;color:var(--muted)}
+.csel{position:relative;user-select:none}
+.csel-trg{display:flex;align-items:center;justify-content:space-between;gap:4px;padding:3px 8px;border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:12px;background:var(--surface2);color:var(--text);width:100%;box-sizing:border-box;transition:border-color .15s;white-space:nowrap;user-select:none}
+.csel-trg:hover,.csel-trg.open{border-color:var(--accent)}
+.csel-arr{font-size:8px;opacity:.55;transition:transform .18s;flex-shrink:0}
+.csel-trg.open .csel-arr{transform:rotate(180deg)}
+.csel-drop{position:fixed;z-index:9999;background:var(--surface2);border:1px solid var(--border);border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,.6);overflow:visible;min-width:130px;display:none;animation:ddIn .12s ease;padding:4px;}
+.csel-opt{padding:6px 12px;font-size:12px;cursor:pointer;color:var(--text);white-space:nowrap;transition:background .1s;border-radius:8px;}
+.csel-opt:hover{background:rgba(255,255,255,0.07)}
+.csel-opt.csel-sel{color:var(--accent);font-weight:500}
+.ap-sec{border-bottom:1px solid var(--border);margin-bottom:2px}
+.ap-sec-hdr{display:flex;align-items:center;gap:6px;cursor:pointer;padding:7px 0;user-select:none}
+.ap-sec-hdr:hover{color:var(--accent)}
+.ap-sec.ap-over{background:rgba(var(--accent-rgb),.07);border-radius:6px}
+.cfg-table{width:100%;border-collapse:collapse;font-size:13px}
+.cfg-table th{text-align:left;padding:5px 8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);border-bottom:1px solid var(--border)}
+.cfg-table td{padding:4px 8px;border-bottom:1px solid var(--border);vertical-align:middle}
+.cfg-inp{width:100%;border:none;border-bottom:1px solid transparent;background:transparent;color:var(--text);font-size:13px;padding:2px 0;font-family:inherit;outline:none;transition:border-color .15s}
+.cfg-inp:focus{border-bottom-color:var(--accent)}
+.cfg-sel{width:100%;border:none;background:transparent;color:var(--text);font-size:13px;font-family:inherit;outline:none;cursor:pointer}
+.cfg-sel:focus{border-bottom:1px solid var(--accent)}
+.cfg-swatch{width:28px;height:22px;border-radius:4px;border:1px solid var(--border);cursor:pointer;flex-shrink:0;transition:box-shadow .15s}
+.cfg-swatch:hover{box-shadow:0 0 0 2px var(--accent)}
+.cfg-dh{color:var(--muted);cursor:grab;opacity:.4;font-size:15px;padding:0 4px;flex-shrink:0}
+tr:hover .cfg-dh{opacity:.9}
+.cfg-drag-over td{border-top:2px solid var(--accent)!important}
+
+/* ── Всплывающее окно выбора цвета (#cpop) ── */
+#cpop{display:none;position:fixed;z-index:600;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px;box-shadow:var(--sh-lg);width:190px}
+#cpop input[type=color]{width:100%;height:60px;padding:0;border:1px solid var(--border);border-radius:7px;cursor:pointer;display:block;margin-bottom:8px;appearance:none;-webkit-appearance:none;background:none}
+.cp-hex{width:100%;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--text);font-size:13px;text-align:center;padding:6px;font-family:monospace;outline:none;display:block}
+.cp-hex:focus{border-color:var(--accent)}
+
+/* ── Заголовок категории (дублирует flex для collapsed-состояния) ── */
+.cat-hdr{cursor:pointer;display:flex;align-items:center;gap:6px;padding:7px 10px}
+.cat-hdr .btn-d{margin-left:auto}
+.cat-body-wrap{transition:none}
+/* ── DnD колонок (.col-drag-over) и редактируемый label категории ── */
+.col-drag-over{border-left:2px solid var(--accent)!important;background:rgba(var(--accent-rgb),.06)}
+.cat-lbl-inp{border:none;border-bottom:1px solid transparent;background:transparent;color:var(--text);font:600 14px/1 inherit;outline:none;padding:0;width:130px;transition:border-color .15s}
+.cat-lbl-inp:hover,.cat-lbl-inp:focus{border-bottom-color:var(--accent)}
+.cat-key-lbl{font-size:11px;color:var(--muted);opacity:.6;margin-left:4px}
+
+/* ── Класс/раса: макет с артом (.cls-layout / .type-dd-* dropdown) ── */
+.cls-layout{display:flex;gap:16px;align-items:stretch}
+.cls-art-col{flex-shrink:0;width:220px;display:flex;flex-direction:column}
+.cls-art-col img{width:100%;flex:1;border-radius:8px;object-fit:cover;display:block;background:var(--surface2);min-height:160px}
+.cls-art-placeholder{width:100%;flex:1;min-height:160px;background:var(--surface2);border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px}
+.cls-fields{flex:1;min-width:0}
+.collapse-all-btn{font-size:11px;padding:2px 7px;opacity:.7}
+.cls-rename-inp{border:none;border-bottom:1px solid transparent;background:transparent;color:var(--text);font:600 15px/1 inherit;outline:none;padding:0;min-width:80px;width:auto;max-width:340px;transition:border-color .15s}
+.cls-rename-inp:hover,.cls-rename-inp:focus{border-bottom-color:var(--accent)}
+.type-dd-btn{display:flex;align-items:center;justify-content:space-between;padding:3px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);cursor:pointer;font-size:12px;gap:4px;width:100%;box-sizing:border-box;transition:border-color .15s;white-space:nowrap;user-select:none;}
+.type-dd-btn:hover,.type-dd-btn.dd-open{border-color:var(--accent);}
+.dd-arrow{font-size:8px;opacity:.55;transition:transform .18s;flex-shrink:0;}
+.type-dd-btn.dd-open .dd-arrow{transform:rotate(180deg);}
+.type-dd-panel{position:fixed;z-index:9999;background:var(--surface2);border:1px solid var(--border);border-radius:8px;box-shadow:0 6px 24px rgba(0,0,0,.45);overflow:hidden;animation:ddIn .12s ease;}
+@keyframes ddIn{from{opacity:0;transform:translateY(-4px);}to{opacity:1;transform:translateY(0);}}
+.type-dd-opt{padding:7px 14px;cursor:pointer;font-size:12px;transition:background .1s;white-space:nowrap;}
+.type-dd-opt:hover{background:rgba(var(--accent-rgb),.13);}
+.type-dd-opt.dd-sel{color:var(--accent);font-weight:500;}
+.type-dd-grp{padding:5px 14px 4px;font-size:11px;font-weight:700;color:var(--accent);letter-spacing:.4px;border-top:1px solid rgba(255,255,255,.07);user-select:none;}
+.type-dd-grp:first-child{border-top:none;}
+.type-dd-sub{padding-left:26px!important;}
+.type-cfg-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:6px;}
+.type-cfg-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;font-weight:600;font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);}
+.type-cfg-row{display:flex;align-items:center;gap:4px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.05);}
+.type-cfg-inp{flex:1;background:transparent;border:none;border-bottom:1px solid transparent;color:var(--text);font-size:13px;outline:none;padding:2px 4px;min-width:0;transition:border-color .15s;}
+.type-cfg-inp:hover,.type-cfg-inp:focus{border-bottom-color:var(--accent);}
+.dir-grp{margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border);}
+.dir-grp:last-of-type{border-bottom:none;}
+.dir-grp-head{display:flex;align-items:center;gap:6px;padding:3px 0;margin-bottom:2px;}
+.dir-sub-row{display:flex;align-items:center;gap:4px;padding:2px 0 2px 10px;}
+.circle-pill{display:inline-flex;align-items:center;gap:2px;padding:3px 8px 3px 10px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);font-size:12px;font-weight:600;}
+.circle-pill input{border:none;background:transparent;color:var(--text);font:600 12px/1 inherit;width:28px;text-align:center;outline:none;padding:0;}
+.circle-pill .btn-icon{font-size:10px;padding:0;opacity:.5;line-height:1;}
+
+/* ── Аккордеон (.acc-hdr / .acc-body) и поля формы (.fr / .fl / .fv) ── */
+.acc-hdr{display:flex;align-items:center;gap:8px;padding:8px 11px;background:var(--surface2);border-radius:6px;cursor:pointer;margin-bottom:3px;user-select:none;transition:background .1s}
+.acc-hdr:hover{background:var(--border)}
+.acc-hdr strong{flex:1}
+.acc-body{padding:12px;border:1px solid var(--border);border-radius:6px;margin-bottom:8px}
+.fr{display:flex;gap:8px;align-items:flex-start;margin-bottom:8px}
+.fl{width:105px;flex-shrink:0;padding-top:5px;color:var(--muted);font-size:12px;font-weight:500}
+.fv{flex:1}
+.fv input{width:100%;border:none;border-bottom:1px solid var(--border);background:transparent;color:var(--text);font-size:13px;padding:3px 0;font-family:inherit;outline:none}
+.fv input:focus{border-bottom-color:var(--accent)}
+.art-up-btn{flex-shrink:0;padding:2px 7px;border-radius:5px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);cursor:pointer;font-size:13px;line-height:1.6;}
+.art-up-btn:hover{background:var(--surface3);color:var(--text);}
+.fv textarea{width:100%;border:1px solid var(--border);border-radius:4px;padding:5px 7px;background:var(--surface2);color:var(--text);font-size:13px;font-family:inherit;outline:none;resize:vertical;min-height:48px;line-height:1.5}
+.fv textarea:focus{border-color:var(--accent)}
+.sub-lbl{font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:10px 0 4px}
+
+/* ── Чипы выбора навыков/магии (.chips / .chip) ── */
+.chips{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px}
+.chip{padding:2px 9px;border-radius:10px;border:1px solid var(--border);font-size:11px;cursor:pointer;background:var(--surface2);color:var(--text);user-select:none;transition:all .1s}
+.chip.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+/* ── Toolbar над таблицей (.tbar) ── */
+.tbar{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.tbar h2{font-size:15px;font-weight:600}
+
+/* ── Поиск (.srch) ── */
+.srch{padding:5px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;font-family:inherit;outline:none;width:220px;transition:border-color .15s}
+.srch:focus{border-color:var(--accent)}
+
+/* ── Тост (#toast) и экран загрузки (#loading) ── */
+#toast{position:fixed;bottom:20px;right:20px;background:var(--success);color:#fff;padding:10px 18px;border-radius:8px;opacity:0;transition:opacity .3s;pointer-events:none;font-size:13px;box-shadow:var(--sh-lg);z-index:999}
+#toast.on{opacity:1}
+#loading{display:flex;align-items:center;justify-content:center;height:100%;font-size:15px;color:var(--muted)}
+.dragging{opacity:.35}
+</style>
+</head>
+<body data-theme="light">
+
+<div id="hdr">
+  <div id="hdr-logo">
+    <img src="icon-192.png" alt="" onerror="this.style.display='none'">
+    RiverForge Editor
+  </div>
+  <span class="spacer"></span>
+  <span class="vd"></span>
+  <button class="btn" onclick="dlDb()">↓ db.json</button>
+  <button class="btn" onclick="dlCfg()">↓ config.json</button>
+  <span class="vd"></span>
+  <div class="theme-toggle" id="th-toggle" onclick="toggleTheme()">
+    <span class="t-icon t-moon">🌙</span>
+    <div class="t-knob"></div>
+    <span class="t-icon t-sun">☀️</span>
+  </div>
+</div>
+
+<div id="tabs">
+  <div class="tab on" onclick="sw('skills')">Навыки</div>
+  <div class="tab"    onclick="sw('magic')">Магия</div>
+  <div class="tab"    onclick="sw('shop')">Лавка</div>
+  <div class="tab"    onclick="sw('glossary')">Глоссарий</div>
+  <div class="tab"    onclick="sw('classes')">Классы</div>
+  <div class="tab"    onclick="sw('races')">Расы</div>
+  <div class="tab"    onclick="sw('config')">Конфиг</div>
+  <div class="tab"    onclick="sw('logs')">Логи</div>
+  <div class="tab"    onclick="sw('preview')">Превью</div>
+</div>
+
+<div id="ct" style="overflow-y:auto;flex:1;padding:16px">
+  <div id="loading">Загрузка данных…</div>
+</div>
+
+
+<div id="toast"></div>
+
+<!-- Color picker popup -->
+<div id="cpop">
+  <input type="color" id="cp-col" oninput="cpColCh(this)">
+  <input class="cp-hex" id="cp-hex" maxlength=7 placeholder="#rrggbb" oninput="cpHexCh(this)">
+</div>
+
+<script>
+/* ── Глобальное состояние ────────────────────────────────────────────────
+   S.db / S.cfg — данные загружаются из /public/db.json и /public/config.json
+   TAB — активная вкладка; DND_ROW — состояние drag-and-drop строк таблицы */
+var S = { db: null, cfg: null };
+var TAB = 'skills', CAT = null, ACC = {};
+var DND_ROW = {};
+var PREV_VIEW = 'groups';
+
+/* ── HTML-экранирование ─────────────────────────────────────────────────
+   eA — для значений атрибутов (экранирует "), eH — для текстовых узлов */
+function eA(s){return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function eH(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function hexRgb(hex){var h=hex.replace('#','');if(h.length===3)h=h[0]+h[0]+h[1]+h[1]+h[2]+h[2];return parseInt(h.slice(0,2),16)+','+parseInt(h.slice(2,4),16)+','+parseInt(h.slice(4,6),16);}
+function blendHex(base,fg,opacity){
+  function parse(h){h=h.replace('#','');if(h.length===3)h=h[0]+h[0]+h[1]+h[1]+h[2]+h[2];return[parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)];}
+  function toH(n){return(n<16?'0':'')+Math.max(0,Math.min(255,Math.round(n))).toString(16);}
+  try{var b=parse(base),f=parse(fg);return'#'+toH(f[0]*opacity+b[0]*(1-opacity))+toH(f[1]*opacity+b[1]*(1-opacity))+toH(f[2]*opacity+b[2]*(1-opacity));}catch(e){return base;}
+}
+
+/* ── Кастомный select (csel) — делегирование событий ────────────────────
+   cselClose  — скрывает все открытые дропдауны
+   cselOpen   — позиционирует и показывает дропдаун через position:fixed
+   click@doc  — .csel-trg → открыть/закрыть; .csel-opt → выбрать тему;
+                вне .csel → закрыть всё */
+function cselClose(){
+  document.querySelectorAll('.csel-drop').forEach(function(d){d.style.display='none';});
+  document.querySelectorAll('.csel-trg.open').forEach(function(t){t.classList.remove('open');});
+}
+function cselOpen(trg){
+  var csel=trg.closest('.csel');if(!csel)return;
+  var drop=csel.querySelector('.csel-drop');if(!drop)return;
+  var wasOpen=drop.style.display==='block';
+  cselClose();
+  if(!wasOpen){
+    var r=trg.getBoundingClientRect();
+    drop.style.left=r.left+'px';
+    drop.style.width=Math.max(130,r.width)+'px';
+    drop.style.top=(r.bottom+3)+'px';
+    drop.style.bottom='auto';
+    drop.style.display='block';
+    var dr=drop.getBoundingClientRect();
+    if(dr.bottom>window.innerHeight-8){
+      drop.style.top='auto';
+      drop.style.bottom=(window.innerHeight-r.top+3)+'px';
+    }
+    trg.classList.add('open');
+  }
+}
+document.addEventListener('click',function(e){
+  var trg=e.target.closest('.csel-trg');
+  if(trg){cselOpen(trg);return;}
+  var opt=e.target.closest('.csel-opt');
+  if(opt){
+    var csel=opt.closest('.csel');if(!csel)return;
+    var val=opt.dataset.val||'';
+    if(csel.dataset.libkey) updLibTheme(csel.dataset.libkey,val);
+    else updCatTheme(csel.dataset.sec,csel.dataset.key,val);
+    var lbl=csel.querySelector('.csel-val');if(lbl)lbl.textContent=val||'— нет —';
+    csel.querySelectorAll('.csel-opt').forEach(function(o){o.classList.toggle('csel-sel',o.dataset.val===val);});
+    cselClose();
+    return;
+  }
+  if(!e.target.closest('.csel'))cselClose();
+});
+
+/* ── Тема (light / dark) ─────────────────────────────────────────────── */
+(function(){var t=localStorage.getItem('rfe-theme')||'light';document.body.setAttribute('data-theme',t);applyTh(t);})();
+function applyTh(t){document.getElementById('th-toggle').classList.toggle('on',t==='light');}
+function toggleTheme(){var n=document.body.getAttribute('data-theme')==='dark'?'light':'dark';document.body.setAttribute('data-theme',n);localStorage.setItem('rfe-theme',n);applyTh(n);}
+
+/* ── Тост-уведомление ───────────────────────────────────────────────── */
+function toast(m){var e=document.getElementById('toast');e.textContent=m;e.classList.add('on');setTimeout(function(){e.classList.remove('on');},2400);}
+
+/* ── Загрузка данных (async IIFE) ────────────────────────────────────── */
+(async function(){
+  try{
+    var rs=await Promise.all([fetch('../public/db.json').then(function(r){return r.json();}),fetch('../public/config.json').then(function(r){return r.json();})]);
+    S.db=JSON.parse(JSON.stringify(rs[0]));S.cfg=JSON.parse(JSON.stringify(rs[1]));
+    sw('skills');
+  }catch(e){document.getElementById('loading').textContent='Ошибка: '+e.message;}
+})();
+
+/* ── Вкладки ─────────────────────────────────────────────────────────
+   sw(id) — переключает вкладку и вызывает render()
+   render() — диспетчер: вызывает нужный renderXxx() по значению TAB */
+var TAB_IDS=['skills','magic','shop','glossary','classes','races','config','logs','preview'];
+function sw(id){TAB=id;CAT=null;document.querySelectorAll('.tab').forEach(function(t,i){t.classList.toggle('on',TAB_IDS[i]===id);});render();}
+function render(){
+  if(!S.db)return;
+  var ct=document.getElementById('ct');
+  if(TAB!=='preview'){ct.style.cssText='flex:1;overflow-y:auto;padding:16px';}
+  if(TAB==='skills')renderCats('skills');
+  else if(TAB==='magic')renderCats('magic');
+  else if(TAB==='shop')renderShop();
+  else if(TAB==='glossary')renderGlossary();
+  else if(TAB==='classes')renderClasses();
+  else if(TAB==='races')renderRaces();
+  else if(TAB==='config')renderConfig();
+  else if(TAB==='logs')renderLogs();
+  else if(TAB==='preview')renderPreview();
+}
+
+/* ── Нечёткая подсветка терминов глоссария ──────────────────────────
+   levenDist — расстояние Левенштейна (нижний регистр)
+   hl(text)  — экранирует текст и оборачивает найденные термины в <strong> */
+function levenDist(s1,s2){s1=s1.toLowerCase();s2=s2.toLowerCase();var c=[];for(var i=0;i<=s1.length;i++){var lv=i;for(var j=0;j<=s2.length;j++){if(i===0){c[j]=j;continue;}if(j>0){var nv=c[j-1];if(s1[i-1]!==s2[j-1])nv=Math.min(nv,lv,c[j])+1;c[j-1]=lv;lv=nv;}}if(i>0)c[s2.length]=lv;}return c[s2.length];}
+function hl(text){
+  if(!text||!S.db||!S.db.glossary||!S.db.glossary.length)return eH(text);
+  var safe=eH(text);
+  var glos=S.db.glossary.map(function(g){var t=g.term.trim();return{term:t,wc:t.split(/\s+/).length};});
+  var maxW=Math.max.apply(null,glos.map(function(g){return g.wc;}).concat([1]));
+  var tokens=safe.split(/([A-Za-zА-Яа-яЁё]+)/);
+  var out='';
+  for(var i=0;i<tokens.length;i++){
+    if(!/^[A-Za-zА-Яа-яЁё]+$/.test(tokens[i])){out+=tokens[i];continue;}
+    var matched=false;
+    for(var w=maxW;w>=1;w--){
+      var ct=[],wf=0,j=i;
+      while(j<tokens.length&&wf<w){ct.push(tokens[j]);if(/^[A-Za-zА-Яа-яЁё]+$/.test(tokens[j]))wf++;j++;}
+      if(wf!==w)continue;
+      var orig=ct.join('');
+      var cmp=ct.filter(function(t){return /^[A-Za-zА-Яа-яЁё]+$/.test(t);}).join(' ');
+      var best=0;
+      glos.filter(function(g){return g.wc===w;}).forEach(function(g){var sim=1-levenDist(cmp,g.term)/Math.max(cmp.length,g.term.length);if(sim>best)best=sim;});
+      if(best>=0.75){out+='<strong>'+orig+'</strong>';i=j-1;matched=true;break;}
+    }
+    if(!matched)out+=tokens[i];
+  }
+  return out;
+}
+
+/* ── Ресурсы ─────────────────────────────────────────────────────────
+   resLbl — возвращает локализованное название ресурса по ключу */
+function resLbl(k){var r=S.cfg.resources||{};return r[k]||k;}
+
+/* ── Быстрое обновление поля элемента ───────────────────────────────
+   sf      — для навыков/магии (S.db[sec][cat].items[i][field])
+   sfShop  — для лавки (S.db.shop[cat].items[i][field]) */
+function sf(el,isNum){S.db[el.dataset.s][el.dataset.c].items[+el.dataset.i][el.dataset.f]=isNum?(+el.value):el.value;}
+function sfShop(el,isNum){S.db.shop[el.dataset.c].items[+el.dataset.i][el.dataset.f]=isNum?(+el.value):el.value;}
+
+/* ── Свёртывание/разворачивание категорий ───────────────────────────
+   CAT_OPEN — словарь "sec:cat" → bool; false = свёрнуто
+   collapseAllCats — переключает все категории секции одновременно */
+var CAT_OPEN={};
+function toggleCatOpen(sec,cat){var k=sec+':'+cat;CAT_OPEN[k]=CAT_OPEN[k]===false?true:false;}
+function collapseAllCats(sec){
+  var keys=sec==='shop'?Object.keys(S.db.shop):Object.keys(S.db[sec]);
+  var anyOpen=keys.some(function(c){return CAT_OPEN[sec+':'+c]!==false;});
+  keys.forEach(function(c){CAT_OPEN[sec+':'+c]=!anyOpen;});
+  if(sec==='shop')renderShop();else renderCats(sec);
+}
+
+/* ── Кастомные столбцы (customCols) ─────────────────────────────────
+   addCustomCol(sec)  — добавляет столбец с prompt, прокидывает поле во все items
+   addCustomColShop   — псевдоним для addCustomCol('shop')
+   updColLabel        — переименовывает столбец (кастомный или встроенный через colLabels)
+   delCustomCol       — удаляет столбец и перерисовывает таблицу + конфиг */
+function customCols(sec){return((S.cfg.customCols||{})[sec])||[];}
+function addCustomCol(sec){
+  var key=prompt('Ключ столбца (English, например range):');if(!key)return;
+  key=key.trim().replace(/\s+/g,'_');
+  if(!S.cfg.customCols)S.cfg.customCols={};
+  if(!S.cfg.customCols[sec])S.cfg.customCols[sec]=[];
+  if(S.cfg.customCols[sec].find(function(c){return c.key===key;})){alert('Ключ «'+key+'» уже существует');return;}
+  var label=prompt('Название для интерфейса (русское):');if(!label)return;
+  S.cfg.customCols[sec].push({key:key,label:label});
+  Object.keys(S.db[sec]).forEach(function(cat){S.db[sec][cat].items.forEach(function(it){if(it[key]===undefined)it[key]='';});});
+  renderCats(sec);CFG_OPEN.cols=true;sw('config');setTimeout(function(){var el=document.getElementById('cfg-panel-cols');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});},80);
+}
+function addCustomColShop(){addCustomCol('shop');}
+function updColLabel(sec,key,label){
+  var list=(S.cfg.customCols||{})[sec]||[];
+  var col=list.find(function(c){return c.key===key;});
+  if(col){col.label=label;return;}
+  if(!S.cfg.colLabels)S.cfg.colLabels={};
+  if(!S.cfg.colLabels[sec])S.cfg.colLabels[sec]={};
+  S.cfg.colLabels[sec][key]=label;
+}
+function delCustomCol(sec,key){
+  if(!S.cfg.customCols||!S.cfg.customCols[sec])return;
+  S.cfg.customCols[sec]=S.cfg.customCols[sec].filter(function(c){return c.key!==key;});
+  var fn=sec==='shop'?renderShop:function(){renderCats(sec);};fn();
+  renderConfig();
+}
+
+/* ── Ресайз столбцов мышью ───────────────────────────────────────────
+   initCR(id) — вешает mousedown на .cr хэндлы внутри таблицы #id;
+     mv(e) — обновляет ширину th и всех th с тем же data-key+data-sec
+     up()  — снимает слушатели и убирает active-класс */
+function initCR(id){
+  var t=document.getElementById(id);if(!t)return;
+  t.querySelectorAll('th').forEach(function(th){
+    var h=th.querySelector('.cr');if(!h)return;
+    h.addEventListener('mousedown',function(e){
+      e.preventDefault();e.stopPropagation();
+      var sx=e.pageX,sw=th.offsetWidth;h.classList.add('act');
+      function mv(e){
+        var w=Math.max(36,sw+e.pageX-sx)+'px';
+        th.style.width=w;
+        if(th.dataset.key&&th.dataset.sec){
+          document.querySelectorAll('th[data-key="'+th.dataset.key+'"][data-sec="'+th.dataset.sec+'"]').forEach(function(o){o.style.width=w;});
+        }
+      }
+      function up(){h.classList.remove('act');document.removeEventListener('mousemove',mv);document.removeEventListener('mouseup',up);}
+      document.addEventListener('mousemove',mv);document.addEventListener('mouseup',up);
+    });
+  });
+}
+
+/* ── Inline-редактирование ячеек таблицы ────────────────────────────
+   startInlineEdit(td, curVal, onSave) — заменяет td на textarea с автосохранением;
+     commit() — сохраняет значение через onSave и возвращает td в исходный вид
+   inlineSkillDesc / inlineShopEffect / inlineGlossDef — обёртки для конкретных полей */
+function startInlineEdit(td,curVal,onSave){
+  if(td.querySelector('textarea'))return;
+  var tdH=td.offsetHeight;
+  td.innerHTML='';
+  var ta=document.createElement('textarea');
+  ta.className='td-hl-ta';
+  ta.value=curVal;
+  td.appendChild(ta);
+  ta.style.height=Math.max(ta.scrollHeight,tdH)+'px';
+  ta.focus();
+  ta.addEventListener('input',function(){ta.style.height='auto';ta.style.height=Math.max(ta.scrollHeight,52)+'px';});
+  var saved=false;
+  function commit(){
+    if(saved)return;saved=true;
+    onSave(ta.value);
+    td.innerHTML=hl(ta.value);
+  }
+  ta.addEventListener('blur',commit);
+  ta.addEventListener('keydown',function(e){
+    if(e.key==='Escape'){saved=true;td.innerHTML=hl(curVal);e.preventDefault();}
+  });
+}
+function inlineSkillDesc(td){
+  var sec=td.dataset.sec,cat=td.dataset.cat,idx=+td.dataset.idx;
+  var item=S.db[sec][cat].items[idx];
+  startInlineEdit(td,item.desc||'',function(v){item.desc=v;});
+}
+function inlineShopEffect(td){
+  var cat=td.dataset.cat,idx=+td.dataset.idx;
+  var item=S.db.shop[cat].items[idx];
+  startInlineEdit(td,item.effect||'',function(v){item.effect=v;});
+}
+function inlineGlossDef(td){
+  var idx=+td.dataset.idx;
+  startInlineEdit(td,S.db.glossary[idx].def||'',function(v){S.db.glossary[idx].def=v;});
+}
+
+/* ── Навыки и магия ─────────────────────────────────────────────────
+   renderCats(sec)  — перебирает категории, строит HTML через catSection
+   catSection       — заголовок категории + таблица items + DnD-хэндлы
+   Кастомный dropdown типа/круга/направления/ресурса: openXxxDD → _ddPos → _ddFinish
+   pasteFromSheet   — вставка из Google Sheets (TSV с многострочными ячейками)
+   cSecDs/Do/Dl/Dd  — DnD категорий между собой */
+var SKILL_TYPES=['пассивный','стойка','атака','защита','манёвр','приём','помощь'];
+var SHOP_TYPES=['боеприпасы','расходуемое','снаряжение','прочее'];
+var DEFAULT_MAGIC_CIRCLES=['I','II','III','IV','V'];
+var DEFAULT_MAGIC_DIRS=[
+  {name:'Техномантия',  subs:['Рунология','Архитектоника','Трансмутация']},
+  {name:'Чародейство',  subs:['Астромантия','Волшба','Инкантация']},
+  {name:'Колдовство',   subs:['Осквернение','Демоноподчинение','Безднозвание']},
+  {name:'Друидизм',     subs:['Оборотничество','Травознание','Стихиеповелевание']},
+  {name:'Шаманизм',     subs:['Спиритизм','Стихиивзывание','Зверозвание']},
+  {name:'Некромантия',  subs:['Умертвление','Мертворождение','Жизневорот']},
+  {name:'Жречество',    subs:['Святословие','Благословение','Ангелография']},
+  {name:'Волеизъявление',subs:['Стихиекинез','Гласовладение','Психокинез']},
+  {name:'Ритуализм',    subs:['Жертвопредание','Литургия','Мистицизм']}
+];
+function getMagicCircles(){return(S&&S.cfg&&S.cfg.magicCircles)||DEFAULT_MAGIC_CIRCLES;}
+function getMagicDirections(){return(S&&S.cfg&&S.cfg.magicDirections)||DEFAULT_MAGIC_DIRS;}
+
+function getItemTypes(sec){return(S&&S.cfg&&S.cfg.itemTypes&&S.cfg.itemTypes[sec])||( sec==='shop'?SHOP_TYPES:SKILL_TYPES);}
+
+/* ── Dropdown типа/круга/направления/ресурса ────────────────────────
+   openXxxDD    — открывает дропдаун для конкретного поля (type/circle/direction/resource)
+   _ddPos(btn,panel) — позиционирует panel через getBoundingClientRect()
+   _ddFinish    — обновляет данные, закрывает панель, перерисовывает */
+var _DD=null;
+function closeDD(){
+  if(!_DD)return;
+  _DD.panel.remove();
+  if(_DD.btn)_DD.btn.classList.remove('dd-open');
+  document.removeEventListener('mousedown',_DD.outside,true);
+  _DD=null;
+}
+function _ddPos(btn,panel){
+  var rect=btn.getBoundingClientRect();
+  var ph=panel.offsetHeight;
+  var spB=window.innerHeight-rect.bottom-4,spA=rect.top-4;
+  var top=(spB>=ph||spB>=spA)?rect.bottom+2:rect.top-ph-2;
+  panel.style.left=rect.left+'px';panel.style.top=top+'px';
+  panel.style.minWidth=Math.max(rect.width,110)+'px';
+}
+function _ddFinish(btn,panel){
+  document.body.appendChild(panel);
+  _ddPos(btn,panel);
+  btn.classList.add('dd-open');
+  _DD={panel:panel,btn:btn,outside:function(e){if(!panel.contains(e.target)&&e.target!==btn)closeDD();}};
+  setTimeout(function(){document.addEventListener('mousedown',_DD.outside,true);},0);
+}
+function openTypeDD(btn,types,curVal,onPick){
+  closeDD();
+  var panel=document.createElement('div');
+  panel.className='type-dd-panel';
+  types.forEach(function(t){
+    var val=typeof t==='object'?t.val:t;
+    var lbl=typeof t==='object'?t.label:t;
+    var opt=document.createElement('div');
+    opt.className='type-dd-opt'+(val===curVal?' dd-sel':'');
+    opt.textContent=lbl;
+    opt.onmousedown=function(e){e.preventDefault();onPick(val);closeDD();};
+    panel.appendChild(opt);
+  });
+  _ddFinish(btn,panel);
+}
+function openGroupedDD(btn,groups,curVal,onPick){
+  closeDD();
+  var panel=document.createElement('div');
+  panel.className='type-dd-panel';
+  var clr=document.createElement('div');
+  clr.className='type-dd-opt'+((!curVal||curVal==='—')?' dd-sel':'');
+  clr.textContent='—';
+  clr.onmousedown=function(e){e.preventDefault();onPick('');closeDD();};
+  panel.appendChild(clr);
+  groups.forEach(function(g){
+    var ghdr=document.createElement('div');
+    ghdr.className='type-dd-grp';
+    ghdr.textContent=g.name;
+    panel.appendChild(ghdr);
+    (g.subs||[]).forEach(function(s){
+      var opt=document.createElement('div');
+      opt.className='type-dd-opt type-dd-sub'+(s===curVal?' dd-sel':'');
+      opt.textContent=s;
+      opt.onmousedown=function(e){e.preventDefault();onPick(s);closeDD();};
+      panel.appendChild(opt);
+    });
+  });
+  _ddFinish(btn,panel);
+  setTimeout(function(){document.addEventListener('mousedown',_DD.outside,true);},0);
+}
+function openSkillTypeDD(btn){
+  var sec=btn.dataset.s,cat=btn.dataset.c,idx=+btn.dataset.i;
+  var cur=(S.db[sec][cat].items[idx]||{}).type||'';
+  openTypeDD(btn,getItemTypes(sec),cur,function(v){S.db[sec][cat].items[idx].type=v;renderCats(sec);});
+}
+function openShopTypeDD(btn){
+  var cat=btn.dataset.c,idx=+btn.dataset.i;
+  var cur=(S.db.shop[cat].items[idx]||{}).type||'';
+  openTypeDD(btn,getItemTypes('shop'),cur,function(v){S.db.shop[cat].items[idx].type=v;renderShop();});
+}
+function _resItems(){return Object.keys(S.cfg.resources||{}).map(function(k){return{val:k,label:(S.cfg.resources[k]||k)};});}
+function openSkillResDD(btn){
+  var sec=btn.dataset.s,cat=btn.dataset.c,idx=+btn.dataset.i;
+  var cur=(S.db[sec][cat].items[idx]||{}).resource||'';
+  openTypeDD(btn,_resItems(),cur,function(v){S.db[sec][cat].items[idx].resource=v;renderCats(sec);});
+}
+function openShopResDD(btn){
+  var cat=btn.dataset.c,idx=+btn.dataset.i;
+  var cur=(S.db.shop[cat].items[idx]||{}).resource||'';
+  openTypeDD(btn,_resItems(),cur,function(v){S.db.shop[cat].items[idx].resource=v;renderShop();});
+}
+function getDirCircles(dirVal){
+  if(!dirVal)return getMagicCircles();
+  var dirs=getMagicDirections();
+  var d=dirs.find(function(g){return g.name===dirVal;});
+  if(!d)d=dirs.find(function(g){return(g.subs||[]).indexOf(dirVal)>=0;});
+  return(d&&d.circles&&d.circles.length)?d.circles:getMagicCircles();
+}
+function openCircleDD(btn){
+  var sec=btn.dataset.s,cat=btn.dataset.c,idx=+btn.dataset.i;
+  var item=S.db[sec][cat].items[idx]||{};
+  var cur=item.circle||'';
+  openTypeDD(btn,getDirCircles(item.direction),cur,function(v){S.db[sec][cat].items[idx].circle=v;renderCats(sec);});
+}
+function openDirDD(btn){
+  var sec=btn.dataset.s,cat=btn.dataset.c,idx=+btn.dataset.i;
+  var cur=(S.db[sec][cat].items[idx]||{}).direction||'';
+  var catLabel=(S.db[sec][cat]&&(S.db[sec][cat].label||cat))||cat;
+  var all=getMagicDirections();
+  var matched=all.find(function(g){return g.name===catLabel||g.name===cat;});
+  var cb=function(v){S.db[sec][cat].items[idx].direction=v;renderCats(sec);};
+  if(matched){
+    openTypeDD(btn,[{val:'',label:'—'}].concat(matched.subs||[]),cur,cb);
+  } else {
+    openGroupedDD(btn,all,cur,cb);
+  }
+}
+
+function renderCats(sec){
+  var cats=Object.keys(S.db[sec]);
+  var anyOpen=cats.some(function(c){return CAT_OPEN[sec+':'+c]!==false;});
+  var h='<div class="tbar"><h2>'+(sec==='skills'?'Навыки':'Магия')+'</h2>'+
+    '<button class="btn btn-sm collapse-all-btn" data-s="'+eA(sec)+'" onclick="collapseAllCats(this.dataset.s)" title="'+(anyOpen?'Свернуть всё':'Развернуть всё')+'">'+(anyOpen?'▲':'▼')+'</button>'+
+    '<button class="btn btn-sm" data-s="'+eA(sec)+'" onclick="addCat(this.dataset.s)">+ Категория</button></div>';
+  cats.forEach(function(cat,ci){h+=catSection(sec,cat,ci);});
+  document.getElementById('ct').innerHTML=h;
+  cats.forEach(function(cat,ci){initCR('tbl-'+sec+'-'+ci);});
+}
+
+function catSection(sec,cat,ci){
+  var d=S.db[sec][cat],items=d.items;
+  var dot=d.accent||d.style||'var(--muted)';
+  var open=CAT_OPEN[sec+':'+cat]!==false;
+  var h='<div class="cat-sec" data-sec="'+eA(sec)+'" data-ci="'+ci+'">'+
+    '<div class="cat-hdr" draggable="true" data-sec="'+eA(sec)+'" data-cat="'+eA(cat)+'" data-ci="'+ci+'" '+
+      'ondragstart="cSecDs(event,this)" ondragover="cSecDo(event,this)" ondrop="cSecDd(event,this,\''+eA(sec)+'\')" ondragleave="cSecDl(this)" '+
+      'onclick="toggleCatOpen(\''+eA(sec)+'\',this.dataset.cat);var b=this.nextElementSibling;b.style.display=b.style.display===\'none\'?\'\':\' none\'">'+
+      '<span style="cursor:grab;color:var(--muted);font-size:15px;opacity:.5" onclick="event.stopPropagation()">⠿</span>'+
+      '<span style="font-size:10px;color:var(--muted);margin-right:2px">'+(open?'▼':'▶')+'</span>'+
+      '<span class="cat-hdr-dot" style="background:'+eA(dot)+'"></span>'+
+      '<input class="cat-lbl-inp" value="'+eA(d.label||cat)+'" placeholder="Русское название" data-s="'+eA(sec)+'" data-c="'+eA(cat)+'" onclick="event.stopPropagation()" onchange="S.db[this.dataset.s][this.dataset.c].label=this.value;this.closest(\'.cat-hdr\').querySelector(\'.cat-key-lbl\').textContent=this.dataset.c">'+
+      '<span class="cat-key-lbl" style="font-size:11px;color:var(--muted);opacity:.6">'+eH(cat)+'</span>'+
+      '<button class="btn btn-sm" data-s="'+eA(sec)+'" data-c="'+eA(cat)+'" onclick="event.stopPropagation();addItem(this.dataset.s,this.dataset.c)">+ Навык</button>'+
+      '<button class="btn btn-sm" title="Вставить строку из Google Sheets" data-s="'+eA(sec)+'" data-c="'+eA(cat)+'" onclick="event.stopPropagation();pasteFromSheet(this.dataset.s,this.dataset.c)">📋</button>'+
+      '<button class="btn btn-sm btn-d" data-s="'+eA(sec)+'" data-c="'+eA(cat)+'" onclick="event.stopPropagation();delCat(this.dataset.s,this.dataset.c)">✕</button>'+
+    '</div>'+
+    '<div class="cat-body-wrap" style="'+(open?'':'display:none')+'">'+
+    '<div class="tbl-wrap"><table class="tbl-data" id="tbl-'+eA(sec)+'-'+ci+'" style="min-width:'+(getColOrder(sec).reduce(function(s,k){var b=(BUILTIN_COLS[sec]||[]).find(function(c){return c.key===k;});return s+(b&&b.width?parseInt(b.width):200);},24+110+34))+'px">'+
+    '<thead><tr>'+
+      '<th style="width:24px"></th>'+
+      getColOrder(sec).map(function(key){
+        var bi=(BUILTIN_COLS[sec]||[]).find(function(c){return c.key===key;});
+        var w=bi&&bi.width?'style="width:'+bi.width+'"':'style="width:100%"';
+        var cc=customCols(sec).find(function(c){return c.key===key;});
+        var delBtn=cc?'<button class="btn-icon" style="float:right;font-size:11px;padding:0 2px" data-s="'+eA(sec)+'" data-k="'+eA(key)+'" onclick="event.stopPropagation();delCustomCol(this.dataset.s,this.dataset.k)">✕</button>':'';
+        return'<th '+w+' draggable="true" data-sec="'+eA(sec)+'" data-key="'+eA(key)+'" ondragstart="colDds(event,this)" ondragover="colDdo(event,this)" ondrop="colDdd(event,this)" ondragleave="colDdl(this)">'+eH(colLbl(sec,key))+delBtn+'<div class="cr"></div></th>';
+      }).join('')+
+      '<th style="width:110px;border-right:none;border-bottom:none"><button class="btn btn-sm" data-s="'+eA(sec)+'" onclick="event.stopPropagation();addCustomCol(this.dataset.s)">+ переменная</button></th>'+
+      '<th style="width:34px;border-right:none;border-bottom:none"></th>'+
+    '</tr></thead><tbody>';
+  items.forEach(function(item,idx){
+    h+='<tr data-sec="'+eA(sec)+'" data-cat="'+eA(cat)+'" data-idx="'+idx+'" '+
+      'ondragstart="rdStart(event,this)" ondragover="rdOver(event,this)" ondrop="rdDrop(event,this)" ondragleave="rdLeave(this)">'+
+      '<td onclick="event.stopPropagation()"><span class="dh-row" onmousedown="dhDown(this)">⠿</span></td>'+
+      getColOrder(sec).map(function(key){return skillTd(sec,cat,item,idx,key);}).join('')+
+      '<td></td>'+
+      '<td><button class="btn-icon" data-s="'+eA(sec)+'" data-c="'+eA(cat)+'" data-i="'+idx+'" onclick="delItem(this.dataset.s,this.dataset.c,+this.dataset.i)">✕</button></td>'+
+    '</tr>';
+  });
+  h+='<tr class="row-dropzone" data-sec="'+eA(sec)+'" data-cat="'+eA(cat)+'" data-idx="'+items.length+'" '+
+    'ondragover="rdOver(event,this)" ondrop="rdDrop(event,this)" ondragleave="rdLeave(this)"><td colspan="20"></td></tr>';
+  h+='</tbody></table></div></div></div>';
+  return h;
+}
+
+/* ── Вставка из Google Sheets (TSV) ────────────────────────────────
+   parseTSV     — RFC-4180 парсер: экранированные " и переносы строк
+   pasteFromSheet — читает буфер обмена и добавляет строки в категорию */
+function parseTSV(text){
+  var rows=[],i=0,n=text.length;
+  while(i<n){
+    var row=[];
+    for(;;){
+      var field='';
+      if(i<n&&text[i]==='"'){
+        i++;
+        while(i<n){
+          if(text[i]==='"'&&i+1<n&&text[i+1]==='"'){field+='"';i+=2;}
+          else if(text[i]==='"'){i++;break;}
+          else field+=text[i++];
+        }
+      } else {
+        while(i<n&&text[i]!=='\t'&&text[i]!=='\n'&&text[i]!=='\r')field+=text[i++];
+      }
+      row.push(field);
+      if(i>=n||text[i]==='\n'||text[i]==='\r')break;
+      i++;
+    }
+    if(i<n&&text[i]==='\r')i++;
+    if(i<n&&text[i]==='\n')i++;
+    if(row.some(function(c){return c.trim()!=='';}))rows.push(row);
+  }
+  return rows;
+}
+function pasteFromSheet(sec,cat){
+  navigator.clipboard.readText().then(function(text){
+    if(!text.trim()){toast('Буфер пуст');return;}
+    var rows=parseTSV(text);
+    if(!rows.length){toast('Нет данных');return;}
+    var keys=getColOrder(sec);
+    var added=0;
+    rows.forEach(function(rawCols){
+      var cols=rawCols.slice();
+      while(cols.length>0&&cols[cols.length-1].trim()==='')cols.pop();
+      var item={};
+      if(cols.length>=keys.length){
+        keys.forEach(function(k,idx){item[k]=idx<cols.length?cols[idx]:'';});
+      } else {
+        var m=cols.length;
+        for(var ci=0;ci<m-1&&ci<keys.length-1;ci++)item[keys[ci]]=cols[ci];
+        if(m>0)item[keys[keys.length-1]]=cols[m-1];
+        for(var ki=m-1;ki<keys.length-1;ki++)if(item[keys[ki]]===undefined)item[keys[ki]]='';
+      }
+      ['actions','cost','learnCost'].forEach(function(k){if(item[k]!==undefined)item[k]=parseFloat(item[k])||0;});
+      if(sec==='shop')S.db.shop[cat].items.push(item);
+      else S.db[sec][cat].items.push(item);
+      added++;
+    });
+    render();toast('Вставлено: '+added+(added%10===1&&added%100!==11?' строка':added%10>=2&&added%10<=4&&(added%100<10||added%100>=20)?' строки':' строк'));
+  }).catch(function(){toast('Нет доступа к буферу — разреши в браузере');});
+}
+function addCat(sec){
+  var key=prompt('Ключ категории (English, например melee):');if(!key)return;
+  var label=prompt('Название для интерфейса (русское):');if(!label)return;
+  S.db[sec][key]={label:label,style:'',accent:'',items:[]};renderCats(sec);
+}
+function delCat(sec,cat){if(!confirm('Удалить «'+(S.db[sec][cat].label||cat)+'»?'))return;delete S.db[sec][cat];renderCats(sec);}
+function addItem(sec,cat){S.db[sec][cat].items.push({name:'Новый',type:'пассивный',actions:0,cost:0,resource:'lightning',learnCost:200,desc:''});renderCats(sec);}
+function delItem(sec,cat,idx){S.db[sec][cat].items.splice(idx,1);renderCats(sec);}
+
+var DND_SEC={sec:null,ci:null};
+function cSecDs(e,el){DND_SEC={sec:el.dataset.sec,ci:+el.dataset.ci};e.dataTransfer.effectAllowed='move';}
+function cSecDo(e,el){e.preventDefault();el.closest('.cat-sec').classList.add('cat-sec-drag-over');}
+function cSecDl(el){el.closest('.cat-sec').classList.remove('cat-sec-drag-over');}
+function cSecDd(e,el,sec){
+  e.preventDefault();el.closest('.cat-sec').classList.remove('cat-sec-drag-over');
+  var from=DND_SEC.ci,to=+el.dataset.ci;if(from===to)return;
+  var keys=Object.keys(S.db[sec]),key=keys.splice(from,1)[0];keys.splice(to,0,key);
+  var nObj={};keys.forEach(function(k){nObj[k]=S.db[sec][k];});S.db[sec]=nObj;
+  renderCats(sec);
+}
+
+/* ── Лавка ───────────────────────────────────────────────────────────
+   renderShop    — аналог renderCats, но для S.db.shop
+   shopSection   — заголовок категории + таблица items + DnD + csel-тема
+   catTable      — таблица items с BUILTIN_COLS + customCols + csel
+   updCatTheme   — обновляет style/accent категории через csel */
+function renderShop(){
+  var cats=Object.keys(S.db.shop);
+  var anyOpen=cats.some(function(c){return CAT_OPEN['shop:'+c]!==false;});
+  var h='<div class="tbar"><h2>Лавка</h2>'+
+    '<button class="btn btn-sm collapse-all-btn" onclick="collapseAllCats(\'shop\')" title="'+(anyOpen?'Свернуть всё':'Развернуть всё')+'">'+(anyOpen?'▲':'▼')+'</button>'+
+    '<button class="btn btn-sm" onclick="addShopCat()">+ Категория</button></div>';
+  cats.forEach(function(cat,ci){h+=shopSection(cat,ci);});
+  document.getElementById('ct').innerHTML=h;
+  cats.forEach(function(cat,ci){initCR('tbl-shop-'+ci);});
+}
+
+function shopSection(cat,ci){
+  var d=S.db.shop[cat],items=d.items||[];
+  var dot=d.accent||d.style||'var(--muted)';
+  var open=CAT_OPEN['shop:'+cat]!==false;
+  var h='<div class="cat-sec" data-sec="shop" data-ci="'+ci+'">'+
+    '<div class="cat-hdr" draggable="true" data-sec="shop" data-cat="'+eA(cat)+'" data-ci="'+ci+'" '+
+      'ondragstart="cSecDs(event,this)" ondragover="cSecDo(event,this)" ondrop="cSecDd(event,this,\'shop\')" ondragleave="cSecDl(this)" '+
+      'onclick="toggleCatOpen(\'shop\',this.dataset.cat);var b=this.nextElementSibling;b.style.display=b.style.display===\'none\'?\'\':\' none\'">'+
+      '<span style="cursor:grab;color:var(--muted);font-size:15px;opacity:.5" onclick="event.stopPropagation()">⠿</span>'+
+      '<span style="font-size:10px;color:var(--muted);margin-right:2px">'+(open?'▼':'▶')+'</span>'+
+      '<span class="cat-hdr-dot" style="background:'+eA(dot)+'"></span>'+
+      '<input class="cat-lbl-inp" value="'+eA(d.label||cat)+'" placeholder="Русское название" data-c="'+eA(cat)+'" onclick="event.stopPropagation()" onchange="S.db.shop[this.dataset.c].label=this.value;this.closest(\'.cat-hdr\').querySelector(\'.cat-key-lbl\').textContent=this.dataset.c">'+
+      '<span class="cat-key-lbl" style="font-size:11px;color:var(--muted);opacity:.6">'+eH(cat)+'</span>'+
+      '<button class="btn btn-sm" data-c="'+eA(cat)+'" onclick="event.stopPropagation();addShopItem(this.dataset.c)">+ Товар</button>'+
+      '<button class="btn btn-sm" title="Вставить строку из Google Sheets" data-c="'+eA(cat)+'" onclick="event.stopPropagation();pasteFromSheet(\'shop\',this.dataset.c)">📋</button>'+
+      '<button class="btn btn-sm btn-d" data-c="'+eA(cat)+'" onclick="event.stopPropagation();delShopCat(this.dataset.c)">✕</button>'+
+    '</div>'+
+    '<div class="cat-body-wrap" style="'+(open?'':'display:none')+'">'+
+    '<div class="tbl-wrap"><table class="tbl-data" id="tbl-shop-'+ci+'" style="min-width:'+(getColOrder('shop').reduce(function(s,k){var b=(BUILTIN_COLS.shop||[]).find(function(c){return c.key===k;});return s+(b&&b.width?parseInt(b.width):200);},24+110+34))+'px">'+
+    '<thead><tr>'+
+      '<th style="width:24px"></th>'+
+      getColOrder('shop').map(function(key){
+        var bi=(BUILTIN_COLS.shop||[]).find(function(c){return c.key===key;});
+        var w=bi&&bi.width?'style="width:'+bi.width+'"':'style="width:100%"';
+        var cc=customCols('shop').find(function(c){return c.key===key;});
+        var delBtn=cc?'<button class="btn-icon" style="float:right;font-size:11px;padding:0 2px" data-k="'+eA(key)+'" onclick="event.stopPropagation();delCustomCol(\'shop\',this.dataset.k)">✕</button>':'';
+        return'<th '+w+' draggable="true" data-sec="shop" data-key="'+eA(key)+'" ondragstart="colDds(event,this)" ondragover="colDdo(event,this)" ondrop="colDdd(event,this)" ondragleave="colDdl(this)">'+eH(colLbl('shop',key))+delBtn+'<div class="cr"></div></th>';
+      }).join('')+
+      '<th style="width:110px;border-right:none;border-bottom:none"><button class="btn btn-sm" onclick="event.stopPropagation();addCustomColShop()">+ переменная</button></th>'+
+      '<th style="width:34px;border-right:none;border-bottom:none"></th>'+
+    '</tr></thead><tbody>';
+  items.forEach(function(item,idx){
+    h+='<tr data-sec="shop" data-cat="'+eA(cat)+'" data-idx="'+idx+'" '+
+      'ondragstart="rdStart(event,this)" ondragover="rdOver(event,this)" ondrop="rdDrop(event,this)" ondragleave="rdLeave(this)">'+
+      '<td onclick="event.stopPropagation()"><span class="dh-row" onmousedown="dhDown(this)">⠿</span></td>'+
+      getColOrder('shop').map(function(key){return shopTd(cat,item,idx,key);}).join('')+
+      '<td></td>'+
+      '<td><button class="btn-icon" data-c="'+eA(cat)+'" data-i="'+idx+'" onclick="delShopItem(this.dataset.c,+this.dataset.i)">✕</button></td>'+
+    '</tr>';
+  });
+  h+='<tr class="row-dropzone" data-sec="shop" data-cat="'+eA(cat)+'" data-idx="'+items.length+'" '+
+    'ondragover="rdOver(event,this)" ondrop="rdDrop(event,this)" ondragleave="rdLeave(this)"><td colspan="20"></td></tr>';
+  h+='</tbody></table></div></div></div>';
+  return h;
+}
+
+function addShopCat(){
+  var key=prompt('Ключ категории (English, например consumables):');if(!key)return;
+  var label=prompt('Название для интерфейса (русское):');if(!label)return;
+  S.db.shop[key]={label:label,style:'',accent:'',items:[]};renderShop();
+}
+function delShopCat(cat){if(!confirm('Удалить «'+(S.db.shop[cat].label||cat)+'»?'))return;delete S.db.shop[cat];renderShop();}
+function addShopItem(cat){if(!S.db.shop[cat].items)S.db.shop[cat].items=[];S.db.shop[cat].items.push({name:'Товар',type:'боеприпасы',cost:0,resource:'gold',effect:''});renderShop();}
+function delShopItem(cat,idx){S.db.shop[cat].items.splice(idx,1);renderShop();}
+
+/* ── Глоссарий ───────────────────────────────────────────────────────
+   renderGlossary — таблица терминов с поиском по LOGS_Q
+   renderGlossaryStyleBlock — настройка цветов termDark/termLight/badgeDark/badgeLight
+   updGlossaryColor — сохраняет цвет в S.cfg.appearance.glossary + перерисовывает */
+var GL_QUERY='';
+function renderGlossary(){
+  var q=GL_QUERY.toLowerCase();
+  var ae=document.activeElement,srchSel=(ae&&ae.classList.contains('srch'))?ae.selectionStart:-1;
+  var items=S.db.glossary.filter(function(e){return !q||(e.term&&e.term.toLowerCase().indexOf(q)>=0)||(e.def&&e.def.toLowerCase().indexOf(q)>=0);});
+  var h='<div class="tbar"><h2>Глоссарий</h2>'+
+    '<input class="srch" placeholder="Поиск…" value="'+eA(GL_QUERY)+'" oninput="GL_QUERY=this.value;renderGlossary()">'+
+    '<button class="btn btn-sm" onclick="addGloss()">+ Термин</button></div>'+
+    '<div class="tbl-wrap" style="border-radius:8px"><table id="gl-tbl">'+
+    '<thead><tr>'+
+      '<th style="width:24px"></th>'+
+      '<th style="width:200px">Термин<div class="cr"></div></th>'+
+      '<th>Определение<div class="cr"></div></th>'+
+      '<th style="width:34px"></th>'+
+    '</tr></thead><tbody>';
+  var allItems=S.db.glossary;
+  items.forEach(function(e){
+    var idx=allItems.indexOf(e);
+    h+='<tr data-sec="glossary" data-idx="'+idx+'" '+
+      'ondragstart="rdStart(event,this)" ondragover="rdOver(event,this)" ondrop="rdDrop(event,this)" ondragleave="rdLeave(this)">'+
+      '<td onclick="event.stopPropagation()"><span class="dh-row" onmousedown="dhDown(this)">⠿</span></td>'+
+      '<td><input class="ci" value="'+eA(e.term)+'" data-i="'+idx+'" onchange="S.db.glossary[+this.dataset.i].term=this.value"></td>'+
+      '<td class="td-hl" data-idx="'+idx+'" onclick="inlineGlossDef(this)">'+hl(e.def)+'</td>'+
+      '<td><button class="btn-icon" data-i="'+idx+'" onclick="delGloss(+this.dataset.i)">✕</button></td>'+
+    '</tr>';
+  });
+  h+='</tbody></table></div>';
+  document.getElementById('ct').innerHTML=h;
+  initCR('gl-tbl');
+  if(srchSel>=0){var si=document.querySelector('#ct .srch');if(si){si.focus();si.setSelectionRange(srchSel,srchSel);}}
+}
+function addGloss(){S.db.glossary.push({term:'',def:''});GL_QUERY='';renderGlossary();
+  var rows=document.querySelectorAll('#gloss-body tr');var last=rows[rows.length-1];
+  if(last){var inp=last.querySelector('input');if(inp)inp.focus();}
+}
+function delGloss(idx){S.db.glossary.splice(idx,1);renderGlossary();}
+
+/* ── Классы ─────────────────────────────────────────────────────────
+   renderClasses    — pill-селектор + форма редактирования выбранного класса
+   buildClassPills  — генерирует .pill-бар с + и − кнопками
+   buildClassForm   — форма с навыками (vetki/skills/magic), статами и описанием */
+function renderClasses(){
+  var keys=Object.keys(S.db.classes);
+  if(!CAT||!S.db.classes[CAT])CAT=keys[0];
+  var pills='<div class="pills-bar">'+keys.map(function(k){
+    return '<span class="pill'+(k===CAT?' on':'')+'" data-k="'+eA(k)+'" onclick="CAT=this.dataset.k;renderClasses()">'+eH(k)+'</span>';
+  }).join('')+'<button class="btn btn-sm" onclick="addClass()">+ Класс</button></div>';
+  document.getElementById('ct').innerHTML=pills+'<div id="cls-body"></div>';
+  renderClassDet(CAT);
+}
+
+function bgPreview(src){
+  var esc=src?eA(src):'';
+  var s='width:100%;aspect-ratio:5/1;border-radius:8px;margin-top:6px;background-color:var(--surface2);background-repeat:no-repeat;background-position:center;background-size:contain;';
+  if(esc)s+='background-image:url(\''+esc+'\');cursor:zoom-in;';
+  return '<div style="'+s+'"'+(esc?' data-src="'+esc+'" onclick="openImgPopup(this.dataset.src)"':'')+'>'
+    +(esc?'':'<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:11px">Нет фона</div>')
+    +'</div>';
+}
+function renderClassDet(cls){
+  var cd=S.db.classes[cls],allSk=Object.keys(S.db.skills),allMg=Object.keys(S.db.magic);
+  var artImg=cd.art?'<img src="'+eA(cd.art)+'" alt="" onerror="this.style.display=\'none\'" onclick="openImgPopup(this.src)" style="width:100%;border-radius:8px;object-fit:contain;display:block;background:var(--surface2);cursor:zoom-in">':'<div class="cls-art-placeholder">Нет арта</div>';
+  var bgImg=bgPreview(cd.bg||'');
+  var artCol='<div class="cls-art-col">'+artImg+bgImg+'</div>';
+  var fields='<div class="cls-fields">';
+  fields+=frImg('Арт URL','<input value="'+eA(cd.art||'')+'" data-k="'+eA(cls)+'" data-img-prefix="class_'+eA(cls)+'" onchange="S.db.classes[this.dataset.k].art=this.value;renderClassDet(this.dataset.k)">');
+  fields+=frImg('Фон','<input value="'+eA(cd.bg||'')+'" data-k="'+eA(cls)+'" data-img-prefix="class_'+eA(cls)+'_bg" onchange="S.db.classes[this.dataset.k].bg=this.value;renderClassDet(this.dataset.k)">');
+  if(cd.classBonus!==undefined){fields+='<div class="sub-lbl">Бонус класса</div>';fields+=fr('Название','<input value="'+eA((cd.classBonus||{}).name||'')+'" data-k="'+eA(cls)+'" onchange="S.db.classes[this.dataset.k].classBonus.name=this.value">');fields+=fr('Описание','<textarea data-k="'+eA(cls)+'" onchange="S.db.classes[this.dataset.k].classBonus.desc=this.value">'+eH((cd.classBonus||{}).desc||'')+'</textarea>');}
+  if(cd.passive!==undefined){fields+='<div class="sub-lbl">Пассивная</div>';fields+=fr('Название','<input value="'+eA((cd.passive||{}).name||'')+'" data-k="'+eA(cls)+'" onchange="S.db.classes[this.dataset.k].passive.name=this.value">');fields+=fr('Описание','<textarea data-k="'+eA(cls)+'" onchange="S.db.classes[this.dataset.k].passive.desc=this.value">'+eH((cd.passive||{}).desc||'')+'</textarea>');}
+  if(cd.active!==undefined){fields+='<div class="sub-lbl">Активная</div>';fields+=fr('Название','<input value="'+eA((cd.active||{}).name||'')+'" data-k="'+eA(cls)+'" onchange="S.db.classes[this.dataset.k].active.name=this.value">');fields+=fr('Описание','<textarea data-k="'+eA(cls)+'" onchange="S.db.classes[this.dataset.k].active.desc=this.value">'+eH((cd.active||{}).desc||'')+'</textarea>');}
+  if(cd.availSkills!==undefined){fields+=chipsBlock('Доступные навыки',allSk,cd.availSkills,cls,null,'sk');fields+=chipsBlock('Доступная магия',allMg,cd.availMagic,cls,null,'mg');}
+  fields+='</div>';
+  var h='<div class="panel">'+
+    '<h3 style="cursor:default">'+
+    '<input class="cls-rename-inp" value="'+eA(cls)+'" data-old="'+eA(cls)+'" onchange="renameClass(this.dataset.old,this.value)" onclick="event.stopPropagation()">'+
+    '<button class="btn btn-sm btn-d" style="margin-left:auto" data-k="'+eA(cls)+'" onclick="deleteClass(this.dataset.k)">✕ Удалить</button></h3>'+
+    '<div class="cls-layout">'+artCol+fields+'</div></div>';
+  if(cd.specs){
+    h+='<div class="tbar"><h2>Специализации</h2><button class="btn btn-sm" data-k="'+eA(cls)+'" onclick="addSpec(this.dataset.k)">+ Специализация</button></div>';
+    Object.keys(cd.specs).forEach(function(spec){
+      var ak=cls+'::'+spec,sd=cd.specs[spec],open=ACC[ak];
+      h+='<div class="acc-hdr" data-ak="'+eA(ak)+'" onclick="toggleAcc(this.dataset.ak)"><span>'+(open?'▼':'▶')+'</span>'+
+        '<input class="cls-rename-inp" value="'+eA(spec)+'" data-cls="'+eA(cls)+'" data-old="'+eA(spec)+'" onchange="renameSpec(this.dataset.cls,this.dataset.old,this.value)" onclick="event.stopPropagation()">'+
+        '<button class="btn btn-sm btn-d" data-k="'+eA(cls)+'" data-sp="'+eA(spec)+'" onclick="event.stopPropagation();delSpec(this.dataset.k,this.dataset.sp)">✕</button></div>';
+      if(open){
+        var spArtImg=sd.art?'<img src="'+eA(sd.art)+'" alt="" onerror="this.style.display=\'none\'" onclick="openImgPopup(this.src)" style="width:100%;border-radius:8px;object-fit:contain;display:block;background:var(--surface2);cursor:zoom-in">':'<div class="cls-art-placeholder">Нет арта</div>';
+        var spBgImg=bgPreview(sd.bg||'');
+        var spArtCol='<div class="cls-art-col">'+spArtImg+spBgImg+'</div>';
+        var spF='<div class="cls-fields">';
+        spF+=frImg('Арт URL','<input value="'+eA(sd.art||'')+'" data-k="'+eA(cls)+'" data-sp="'+eA(spec)+'" data-img-prefix="class_'+eA(cls)+'_spec_'+eA(spec)+'" onchange="S.db.classes[this.dataset.k].specs[this.dataset.sp].art=this.value;renderClassDet(this.dataset.k)">');
+        spF+=frImg('Фон','<input value="'+eA(sd.bg||'')+'" data-k="'+eA(cls)+'" data-sp="'+eA(spec)+'" data-img-prefix="class_'+eA(cls)+'_spec_'+eA(spec)+'_bg" onchange="S.db.classes[this.dataset.k].specs[this.dataset.sp].bg=this.value;renderClassDet(this.dataset.k)">');
+        if(sd.activationCond!==undefined){spF+='<div class="sub-lbl">Условие активации</div>';spF+=fr('Название','<input value="'+eA((sd.activationCond||{}).name||'')+'" data-k="'+eA(cls)+'" data-sp="'+eA(spec)+'" onchange="S.db.classes[this.dataset.k].specs[this.dataset.sp].activationCond.name=this.value">');spF+=fr('Описание','<textarea data-k="'+eA(cls)+'" data-sp="'+eA(spec)+'" onchange="S.db.classes[this.dataset.k].specs[this.dataset.sp].activationCond.desc=this.value">'+eH((sd.activationCond||{}).desc||'')+'</textarea>');}
+        if(sd.passive!==undefined){spF+='<div class="sub-lbl">Пассивная</div>';spF+=fr('Название','<input value="'+eA((sd.passive||{}).name||'')+'" data-k="'+eA(cls)+'" data-sp="'+eA(spec)+'" onchange="S.db.classes[this.dataset.k].specs[this.dataset.sp].passive.name=this.value">');spF+=fr('Описание','<textarea data-k="'+eA(cls)+'" data-sp="'+eA(spec)+'" onchange="S.db.classes[this.dataset.k].specs[this.dataset.sp].passive.desc=this.value">'+eH((sd.passive||{}).desc||'')+'</textarea>');}
+        if(sd.active!==undefined){spF+='<div class="sub-lbl">Активная</div>';spF+=fr('Название','<input value="'+eA((sd.active||{}).name||'')+'" data-k="'+eA(cls)+'" data-sp="'+eA(spec)+'" onchange="S.db.classes[this.dataset.k].specs[this.dataset.sp].active.name=this.value">');spF+=fr('Описание','<textarea data-k="'+eA(cls)+'" data-sp="'+eA(spec)+'" onchange="S.db.classes[this.dataset.k].specs[this.dataset.sp].active.desc=this.value">'+eH((sd.active||{}).desc||'')+'</textarea>');}
+        spF+=chipsBlock('Доступные навыки',allSk,sd.availSkills||[],cls,spec,'sk');
+        spF+=chipsBlock('Доступная магия',allMg,sd.availMagic||[],cls,spec,'mg');
+        spF+='</div>';
+        h+='<div class="acc-body"><div class="cls-layout">'+spArtCol+spF+'</div></div>';
+      }
+    });
+  }
+  var el=document.getElementById('cls-body');if(el)el.innerHTML=h;
+}
+
+function toggleAcc(k){ACC[k]=!ACC[k];render();}
+function _branchAccent(item,field){
+  var db=field==='sk'?S.db.skills:S.db.magic;
+  var raw=db[item]&&db[item].accent?db[item].accent+'':'';
+  var key=raw.replace('accent-','');
+  return key?(((S.cfg.appearance||{}).stripes||{})[key]||{}).accent||null:null;
+}
+function chipsBlock(label,all,avail,cls,spec,field){
+  return '<div class="sub-lbl">'+label+'</div><div class="chips">'+all.map(function(item){
+    var on=avail==='all'||avail==='wizard'||(Array.isArray(avail)&&avail.indexOf(item)>=0);
+    var accent=_branchAccent(item,field);
+    var style=on&&accent?' style="background:'+accent+';border-color:'+accent+'"':'';
+    return '<span class="chip'+(on?' on':'')+'"'+style+' data-k="'+eA(cls)+'" '+(spec?'data-sp="'+eA(spec)+'" ':'')+
+      'data-it="'+eA(item)+'" data-f="'+eA(field)+'" onclick="toggleAvail(this)">'+eH(item)+'</span>';
+  }).join('')+'</div>';
+}
+function toggleAvail(el){
+  var cls=el.dataset.k,spec=el.dataset.sp||null,item=el.dataset.it;
+  var field=el.dataset.f==='sk'?'availSkills':'availMagic';
+  var target=spec?S.db.classes[cls].specs[spec]:S.db.classes[cls];
+  var arr=target[field];if(!Array.isArray(arr)){target[field]=[];arr=target[field];}
+  var i=arr.indexOf(item);if(i>=0)arr.splice(i,1);else arr.push(item);
+  var accent=_branchAccent(item,el.dataset.f);
+  el.classList.toggle('on');
+  if(el.classList.contains('on')&&accent){el.style.background=accent;el.style.borderColor=accent;}
+  else{el.style.background='';el.style.borderColor='';}
+}
+function addClass(){var n=prompt('Класс:');if(!n)return;S.db.classes[n]={art:'',bg:'',classBonus:{name:'',desc:''},passive:{name:'',desc:''},active:{name:'',desc:''},specs:{}};CAT=n;renderClasses();}
+function deleteClass(cls){if(!confirm('Удалить «'+cls+'»?'))return;delete S.db.classes[cls];CAT=null;renderClasses();}
+function addSpec(cls){var n=prompt('Специализация:');if(!n)return;S.db.classes[cls].specs[n]={art:'',bg:'',activationCond:{name:'',desc:''},passive:{name:'',desc:''},active:{name:'',desc:''},availSkills:[],availMagic:[]};ACC[cls+'::'+n]=true;renderClassDet(cls);}
+function delSpec(cls,spec){if(!confirm('Удалить «'+spec+'»?'))return;delete S.db.classes[cls].specs[spec];renderClassDet(cls);}
+function renameClass(oldKey,newKey){
+  newKey=newKey.trim();if(!newKey||newKey===oldKey)return;
+  if(S.db.classes[newKey]){alert('Класс «'+newKey+'» уже существует');return;}
+  S.db.classes[newKey]=S.db.classes[oldKey];delete S.db.classes[oldKey];
+  if(!S.cfg.migrationMap)S.cfg.migrationMap={};
+  if(!S.cfg.migrationMap.cls)S.cfg.migrationMap.cls={};
+  Object.keys(S.cfg.migrationMap.cls).forEach(function(k){if(S.cfg.migrationMap.cls[k]===oldKey)S.cfg.migrationMap.cls[k]=newKey;});
+  S.cfg.migrationMap.cls[oldKey]=newKey;
+  CAT=newKey;renderClasses();
+}
+function renameSpec(cls,oldKey,newKey){
+  newKey=newKey.trim();if(!newKey||newKey===oldKey)return;
+  if(S.db.classes[cls].specs[newKey]){alert('Специализация «'+newKey+'» уже существует');return;}
+  S.db.classes[cls].specs[newKey]=S.db.classes[cls].specs[oldKey];
+  delete S.db.classes[cls].specs[oldKey];
+  var oldAk=cls+'::'+oldKey,newAk=cls+'::'+newKey;
+  if(ACC[oldAk]!==undefined){ACC[newAk]=ACC[oldAk];delete ACC[oldAk];}
+  if(!S.cfg.migrationMap)S.cfg.migrationMap={};
+  if(!S.cfg.migrationMap.spec)S.cfg.migrationMap.spec={};
+  Object.keys(S.cfg.migrationMap.spec).forEach(function(k){if(S.cfg.migrationMap.spec[k]===oldKey)S.cfg.migrationMap.spec[k]=newKey;});
+  S.cfg.migrationMap.spec[oldKey]=newKey;
+  renderClassDet(cls);
+}
+
+/* ── Расы ───────────────────────────────────────────────────────────
+   renderRaces      — pill-селектор + форма редактирования расы
+   buildRacePills   — генерирует .pill-бар с + и − кнопками
+   buildRaceForm    — форма с подрасами, статами, особенностями и описанием */
+function renderRaces(){
+  var keys=Object.keys(S.db.races);
+  if(!CAT||!S.db.races[CAT])CAT=keys[0];
+  var pills='<div class="pills-bar">'+keys.map(function(k){
+    return '<span class="pill'+(k===CAT?' on':'')+'" data-k="'+eA(k)+'" onclick="CAT=this.dataset.k;renderRaces()">'+eH(k)+'</span>';
+  }).join('')+'<button class="btn btn-sm" onclick="addRace()">+ Раса</button></div>';
+  document.getElementById('ct').innerHTML=pills+'<div id="race-body"></div>';
+  renderRaceDet(CAT);
+}
+
+function renderRaceDet(race){
+  var rd=S.db.races[race];
+  var artImg=rd.art?'<img src="'+eA(rd.art)+'" alt="" onerror="this.style.display=\'none\'" onclick="openImgPopup(this.src)" style="width:100%;border-radius:8px;object-fit:contain;display:block;background:var(--surface2);cursor:zoom-in">':'<div class="cls-art-placeholder">Нет арта</div>';
+  var artCol='<div class="cls-art-col">'+artImg+'</div>';
+  var fields='<div class="cls-fields">';
+  fields+=frImg('Арт URL','<input value="'+eA(rd.art||'')+'" data-k="'+eA(race)+'" data-img-prefix="race_'+eA(race)+'" onchange="S.db.races[this.dataset.k].art=this.value;renderRaceDet(this.dataset.k)">');
+  fields+='<div class="sub-lbl">Расовый бонус</div>';
+  fields+=fr('Название','<input value="'+eA((rd.raceBonus||{}).name||'')+'" data-k="'+eA(race)+'" onchange="S.db.races[this.dataset.k].raceBonus.name=this.value">');
+  fields+=fr('Описание','<textarea data-k="'+eA(race)+'" onchange="S.db.races[this.dataset.k].raceBonus.desc=this.value">'+eH((rd.raceBonus||{}).desc||'')+'</textarea>');
+  fields+='</div>';
+  var h='<div class="panel">'+
+    '<h3 style="cursor:default">'+
+    '<input class="cls-rename-inp" value="'+eA(race)+'" data-old="'+eA(race)+'" onchange="renameRace(this.dataset.old,this.value)" onclick="event.stopPropagation()">'+
+    '<button class="btn btn-sm btn-d" style="margin-left:auto" data-k="'+eA(race)+'" onclick="deleteRace(this.dataset.k)">✕ Удалить</button></h3>'+
+    '<div class="cls-layout">'+artCol+fields+'</div></div>';
+  if(rd.subraces){
+    h+='<div class="tbar"><h2>Подрасы</h2><button class="btn btn-sm" data-k="'+eA(race)+'" onclick="addSubrace(this.dataset.k)">+ Подраса</button></div>';
+    Object.keys(rd.subraces).forEach(function(sub){
+      var ak=race+'::'+sub,sd=rd.subraces[sub],open=ACC[ak];
+      h+='<div class="acc-hdr" data-ak="'+eA(ak)+'" onclick="toggleAcc(this.dataset.ak)"><span>'+(open?'▼':'▶')+'</span>'+
+        '<input class="cls-rename-inp" value="'+eA(sub)+'" data-race="'+eA(race)+'" data-old="'+eA(sub)+'" onchange="renameSubrace(this.dataset.race,this.dataset.old,this.value)" onclick="event.stopPropagation()">'+
+        '<button class="btn btn-sm btn-d" data-k="'+eA(race)+'" data-sb="'+eA(sub)+'" onclick="event.stopPropagation();delSubrace(this.dataset.k,this.dataset.sb)">✕</button></div>';
+      if(open){
+        var spArtImg=sd.art?'<img src="'+eA(sd.art)+'" alt="" onerror="this.style.display=\'none\'" onclick="openImgPopup(this.src)" style="width:100%;border-radius:8px;object-fit:contain;display:block;background:var(--surface2);cursor:zoom-in">':'<div class="cls-art-placeholder">Нет арта</div>';
+        var spArtCol='<div class="cls-art-col">'+spArtImg+'</div>';
+        var spF='<div class="cls-fields">';
+        spF+=frImg('Арт URL','<input value="'+eA(sd.art||'')+'" data-k="'+eA(race)+'" data-sb="'+eA(sub)+'" data-img-prefix="race_'+eA(race)+'_sub_'+eA(sub)+'" onchange="S.db.races[this.dataset.k].subraces[this.dataset.sb].art=this.value;renderRaceDet(this.dataset.k)">');
+        if(sd.passive!==undefined){spF+='<div class="sub-lbl">Пассивная</div>';spF+=fr('Название','<input value="'+eA((sd.passive||{}).name||'')+'" data-k="'+eA(race)+'" data-sb="'+eA(sub)+'" onchange="S.db.races[this.dataset.k].subraces[this.dataset.sb].passive.name=this.value">');spF+=fr('Описание','<textarea data-k="'+eA(race)+'" data-sb="'+eA(sub)+'" onchange="S.db.races[this.dataset.k].subraces[this.dataset.sb].passive.desc=this.value">'+eH((sd.passive||{}).desc||'')+'</textarea>');}
+        if(sd.active!==undefined){spF+='<div class="sub-lbl">Активная</div>';spF+=fr('Название','<input value="'+eA((sd.active||{}).name||'')+'" data-k="'+eA(race)+'" data-sb="'+eA(sub)+'" onchange="S.db.races[this.dataset.k].subraces[this.dataset.sb].active.name=this.value">');spF+=fr('Описание','<textarea data-k="'+eA(race)+'" data-sb="'+eA(sub)+'" onchange="S.db.races[this.dataset.k].subraces[this.dataset.sb].active.desc=this.value">'+eH((sd.active||{}).desc||'')+'</textarea>');}
+        spF+='</div>';
+        h+='<div class="acc-body"><div class="cls-layout">'+spArtCol+spF+'</div></div>';
+      }
+    });
+  }
+  var el=document.getElementById('race-body');if(el)el.innerHTML=h;
+}
+
+function addRace(){var n=prompt('Раса:');if(!n)return;S.db.races[n]={art:'',raceBonus:{name:'',desc:''},subraces:{}};CAT=n;renderRaces();}
+function deleteRace(race){if(!confirm('Удалить «'+race+'»?'))return;delete S.db.races[race];CAT=null;renderRaces();}
+function addSubrace(race){var n=prompt('Подраса:');if(!n)return;if(!S.db.races[race].subraces)S.db.races[race].subraces={};S.db.races[race].subraces[n]={art:'',passive:{name:'',desc:''},active:{name:'',desc:''}};ACC[race+'::'+n]=true;renderRaceDet(race);}
+function delSubrace(race,sub){if(!confirm('Удалить «'+sub+'»?'))return;delete S.db.races[race].subraces[sub];renderRaceDet(race);}
+function renameRace(oldKey,newKey){
+  newKey=newKey.trim();if(!newKey||newKey===oldKey)return;
+  if(S.db.races[newKey]){alert('Раса «'+newKey+'» уже существует');return;}
+  S.db.races[newKey]=S.db.races[oldKey];delete S.db.races[oldKey];
+  if(!S.cfg.migrationMap)S.cfg.migrationMap={};
+  if(!S.cfg.migrationMap.race)S.cfg.migrationMap.race={};
+  Object.keys(S.cfg.migrationMap.race).forEach(function(k){if(S.cfg.migrationMap.race[k]===oldKey)S.cfg.migrationMap.race[k]=newKey;});
+  S.cfg.migrationMap.race[oldKey]=newKey;
+  CAT=newKey;renderRaces();
+}
+function renameSubrace(race,oldKey,newKey){
+  newKey=newKey.trim();if(!newKey||newKey===oldKey)return;
+  if(S.db.races[race].subraces[newKey]){alert('Подраса «'+newKey+'» уже существует');return;}
+  S.db.races[race].subraces[newKey]=S.db.races[race].subraces[oldKey];
+  delete S.db.races[race].subraces[oldKey];
+  var oldAk=race+'::'+oldKey,newAk=race+'::'+newKey;
+  if(ACC[oldAk]!==undefined){ACC[newAk]=ACC[oldAk];delete ACC[oldAk];}
+  if(!S.cfg.migrationMap)S.cfg.migrationMap={};
+  if(!S.cfg.migrationMap.subrace)S.cfg.migrationMap.subrace={};
+  Object.keys(S.cfg.migrationMap.subrace).forEach(function(k){if(S.cfg.migrationMap.subrace[k]===oldKey)S.cfg.migrationMap.subrace[k]=newKey;});
+  S.cfg.migrationMap.subrace[oldKey]=newKey;
+  renderRaceDet(race);
+}
+
+/* ── Конфиг ──────────────────────────────────────────────────────────
+   renderConfig     — собирает несколько панелей: ресурсы, слоты, itemTypes, столбцы
+   Каждая панель — collapsible, управляется CFG_OPEN[key] */
+
+/* ── Лог-вкладка ─────────────────────────────────────────────────────
+   LOGS_DATA / LOGS_SORT / LOGS_Q — кэш и состояние сортировки / поиска
+   renderLogs    — загружает /RiverForge/public/logs/ и рисует таблицу
+   fmtTs         — форматирует timestamp в ru-RU дату+время */
+var LOGS_DATA=null,LOGS_SORT={col:'ts',dir:-1},LOGS_Q='';
+function fmtTs(ts){
+  var d=new Date(ts);
+  return d.toLocaleDateString('ru-RU')+' '+d.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
+}
+function fmtNum(n){return String(n||0).replace(/\B(?=(\d{3})+(?!\d))/g,' ');}
+function logsWorkerUrl(){return localStorage.getItem('rf_worker_url')||'';}
+function saveWorkerUrl(v){localStorage.setItem('rf_worker_url',v.trim());}
+function logsAdminKey(){return localStorage.getItem('rf_admin_key')||'';}
+function saveAdminKey(v){localStorage.setItem('rf_admin_key',v.trim());}
+function logsSort(col){
+  if(LOGS_SORT.col===col)LOGS_SORT.dir*=-1;else{LOGS_SORT.col=col;LOGS_SORT.dir=-1;}
+  renderLogs();
+}
+function logsSearch(v){LOGS_Q=v;renderLogs();}
+function logsDownload(){
+  if(!LOGS_DATA)return;
+  var b=new Blob([JSON.stringify(LOGS_DATA,null,2)],{type:'application/json'});
+  var u=URL.createObjectURL(b);var a=document.createElement('a');
+  a.href=u;a.download='riverforge-logs.json';a.click();URL.revokeObjectURL(u);
+}
+async function loadLogs(){
+  var url=logsWorkerUrl();if(!url){toast('Укажи URL воркера');return;}
+  var btn=document.getElementById('logs-load-btn');if(btn)btn.textContent='Загрузка…';
+  try{
+    var key=logsAdminKey();
+    var endpoint=url.replace(/\/$/,'')+'/admin/logs'+(key?'?key='+encodeURIComponent(key):'');
+    var r=await fetch(endpoint);
+    if(r.status===403)throw new Error('Неверный ключ доступа');
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    LOGS_DATA=await r.json(); LOGS_EXPANDED={};
+    renderLogs();
+  }catch(e){toast('Ошибка: '+e.message);if(btn)btn.textContent='Загрузить';}
+}
+var LOGS_EXPANDED={};
+function toggleLogRow(i){LOGS_EXPANDED[i]=!LOGS_EXPANDED[i];renderLogs();}
+var VLAD_KEYS=['сноровка','скрытность','сила','стойкость','интуиция','внимание','память','мышление','выдержка','эмпатия','устрашение','лидерство'];
+function renderLogs(){
+  var COLS=[
+    {key:'ts',           label:'Время'},
+    {key:'player_name',  label:'Игрок'},
+    {key:'char_name',    label:'Персонаж'},
+    {key:'level',        label:'Ур.'},
+    {key:'cls',          label:'Класс'},
+    {key:'race',         label:'Раса'},
+    {key:'skills_count', label:'Навыки'},
+    {key:'magic_count',  label:'Заклин.'},
+    {key:'gold',         label:'Золото'},
+    {key:'_expand',      label:''}
+  ];
+  var ae=document.activeElement,srchSel=(ae&&ae.dataset.logsSearch)?ae.selectionStart:-1;
+  var workerUrl=logsWorkerUrl();
+  var adminKey=logsAdminKey();
+  var h='<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">'+
+    '<input class="cfg-inp" id="logs-url-inp" placeholder="https://your-worker.workers.dev" value="'+eA(workerUrl)+'" style="width:300px;border:1px solid var(--border);border-radius:6px;padding:5px 10px;font-size:13px" oninput="saveWorkerUrl(this.value)">'+
+    '<input class="cfg-inp" placeholder="Ключ доступа" value="'+eA(adminKey)+'" type="password" style="width:160px;border:1px solid var(--border);border-radius:6px;padding:5px 10px;font-size:13px" oninput="saveAdminKey(this.value)">'+
+    '<button class="btn" id="logs-load-btn" onclick="loadLogs()">'+(LOGS_DATA?'Обновить':'Загрузить')+'</button>'+
+    (LOGS_DATA?'<button class="btn" onclick="logsDownload()">↓ JSON</button>':'')+
+    (LOGS_DATA?'<span style="color:var(--muted);font-size:12px">'+LOGS_DATA.length+' записей</span>':'')+
+  '</div>';
+  if(LOGS_DATA){
+    h+='<input data-logs-search="1" class="cfg-inp" placeholder="Поиск…" value="'+eA(LOGS_Q)+'" style="width:300px;border:1px solid var(--border);border-radius:6px;padding:5px 10px;font-size:13px;margin-bottom:12px" oninput="logsSearch(this.value)">';
+    var q=LOGS_Q.toLowerCase();
+    var rows=LOGS_DATA.filter(function(r){
+      return !q||['player_name','char_name','cls','race','level'].some(function(k){return String(r[k]||'').toLowerCase().includes(q);})||String(r.gold||0).includes(q);
+    });
+    var sc=LOGS_SORT.col,sd=LOGS_SORT.dir;
+    rows=rows.slice().sort(function(a,b){
+      var av=a[sc],bv=b[sc];
+      if(sc==='gold'||sc==='ts'){av=+av||0;bv=+bv||0;}
+      else if(sc==='level'){av=parseInt(av)||0;bv=parseInt(bv)||0;}
+      else{av=String(av||'').toLowerCase();bv=String(bv||'').toLowerCase();}
+      return av<bv?-sd:av>bv?sd:0;
+    });
+    h+='<div class="tbl-wrap"><table class="tbl-data" style="min-width:800px"><thead><tr>';
+    COLS.forEach(function(c){
+      if(c.key==='_expand'){h+='<th style="width:32px"></th>';return;}
+      var arr=LOGS_SORT.col===c.key?(LOGS_SORT.dir>0?' ▲':' ▼'):'';
+      var w=c.key==='ts'?';width:140px':c.key==='level'?';width:40px':c.key==='gold'?';width:80px':c.key==='skills_count'||c.key==='magic_count'?';width:64px':'';
+      var al=(c.key==='gold'||c.key==='skills_count'||c.key==='magic_count')?';text-align:right':'';
+      h+='<th style="cursor:pointer;user-select:none'+w+al+'" onclick="logsSort(\''+c.key+'\')">'+eH(c.label)+arr+'</th>';
+    });
+    h+='</tr></thead><tbody>';
+    if(rows.length===0){h+='<tr><td colspan="'+COLS.length+'" style="text-align:center;padding:20px;color:var(--muted)">Нет записей</td></tr>';}
+    rows.forEach(function(r,i){
+      var expanded=!!LOGS_EXPANDED[i];
+      var hasDetail=r.vladenie&&Object.keys(r.vladenie).length>0;
+      h+='<tr style="'+(expanded?'background:rgba(128,128,128,0.07)':'')+'">'
+        +'<td style="color:var(--muted);font-size:12px;white-space:nowrap">'+eH(fmtTs(r.ts))+'</td>'
+        +'<td>'+eH(r.player_name||'—')+'</td>'
+        +'<td style="font-weight:500">'+eH(r.char_name||'—')+'</td>'
+        +'<td style="text-align:center;color:var(--muted)">'+eH(String(r.level||'—'))+'</td>'
+        +'<td>'+eH(r.cls||'—')+'</td>'
+        +'<td>'+eH(r.race||'—')+'</td>'
+        +'<td style="text-align:right">'+eH(String(r.skills_count||0))+'</td>'
+        +'<td style="text-align:right">'+eH(String(r.magic_count||0))+'</td>'
+        +'<td style="text-align:right;font-variant-numeric:tabular-nums">'+eH(fmtNum(r.gold))+'</td>'
+        +'<td style="text-align:center">'+(hasDetail?'<button onclick="toggleLogRow('+i+')" style="background:none;border:none;cursor:pointer;font-size:14px;color:var(--muted);padding:0 4px;">'+(expanded?'▲':'▼')+'</button>':'')+'</td>'
+        +'</tr>';
+      if(expanded&&hasDetail){
+        var vl=r.vladenie||{};
+        var eq=r.equipment_slots||[];
+        var vladHtml='<div style="display:flex;flex-wrap:wrap;gap:6px 14px;margin-bottom:'+(eq.length?'10px':'0')+';">';
+        VLAD_KEYS.forEach(function(k){
+          vladHtml+='<span style="font-size:12px;white-space:nowrap;"><span style="color:var(--muted);">'+eH(k)+'</span> <b>'+eH(String(vl[k]!=null?vl[k]:'—'))+'</b></span>';
+        });
+        vladHtml+='</div>';
+        var eqHtml='';
+        if(eq.length){
+          eqHtml='<div style="display:flex;flex-wrap:wrap;gap:5px 10px;">';
+          eq.forEach(function(s){
+            eqHtml+='<span style="font-size:12px;'+(s.equipped?'':'color:var(--muted);text-decoration:line-through;')+'">'
+              +'<span style="color:var(--muted)">'+eH(s.slot)+':</span> '+eH(s.name)+'</span>';
+          });
+          eqHtml+='</div>';
+        }
+        h+='<tr style="background:rgba(128,128,128,0.04)"><td colspan="'+COLS.length+'" style="padding:10px 14px;border-top:none;">'+vladHtml+eqHtml+'</td></tr>';
+      }
+    });
+    h+='</tbody></table></div>';
+  }
+  document.getElementById('ct').innerHTML=h;
+  if(srchSel>=0){var si=document.querySelector('[data-logs-search]');if(si){si.focus();si.setSelectionRange(srchSel,srchSel);}}
+}
+
+var STAT_OPT=['владение','характеристика','склонность','производная','атрибут'];
+var CFG_OPEN={res:false,stats:false,slots:false,vl:false,kh:false,cols:false,types:false,circles:false,dirs:false,skillCats:false,magicCats:false,shopCats:false,libCats:false};
+var AP_SECTION_ORDER=['stripes','colors','bg'];
+var AP_SECTION_OPEN={stripes:true,colors:true,bg:false};
+var AP_CFG_WIDTH=340;
+var AP_DND_SEC=null;
+var COL_SEC_LABELS={skills:'Навыки',magic:'Магия',shop:'Лавка'};
+var BUILTIN_COLS={
+  skills:[
+    {key:'name',      label:'Название', width:'175px'},
+    {key:'type',      label:'Тип',      width:'110px'},
+    {key:'actions',   label:'Дейст.',   width:'70px'},
+    {key:'cost',      label:'Стоим.',   width:'70px'},
+    {key:'resource',  label:'Ресурс',   width:'95px'},
+    {key:'learnCost', label:'Обуч.',    width:'70px'},
+    {key:'desc',      label:'Описание', width:''}
+  ],
+  magic:[
+    {key:'name',      label:'Название',    width:'155px'},
+    {key:'type',      label:'Тип',         width:'100px'},
+    {key:'circle',    label:'Круг',        width:'55px'},
+    {key:'direction', label:'Направление', width:'130px'},
+    {key:'actions',   label:'Дейст.',      width:'70px'},
+    {key:'cost',      label:'Стоим.',      width:'70px'},
+    {key:'resource',  label:'Ресурс',      width:'90px'},
+    {key:'learnCost', label:'Обуч.',       width:'70px'},
+    {key:'desc',      label:'Описание',    width:''}
+  ],
+  shop:[
+    {key:'name',     label:'Название', width:'190px'},
+    {key:'type',     label:'Тип',      width:'110px'},
+    {key:'cost',     label:'Цена',     width:'65px'},
+    {key:'resource', label:'Ресурс',   width:'95px'},
+    {key:'effect',   label:'Эффект',   width:''}
+  ]
+};
+function colLbl(sec,key){
+  var ov=((S.cfg.colLabels||{})[sec])||{};
+  if(ov[key])return ov[key];
+  var b=(BUILTIN_COLS[sec]||[]).find(function(c){return c.key===key;});
+  return b?b.label:key;
+}
+function getColOrder(sec){
+  var saved=((S.cfg.colOrder||{})[sec])||[];
+  var base=(BUILTIN_COLS[sec]||[]).map(function(c){return c.key;});
+  var cust=customCols(sec).map(function(c){return c.key;});
+  var all=base.concat(cust);
+  if(saved.length){
+    cust.forEach(function(k){if(saved.indexOf(k)<0)saved.push(k);});
+    return saved.filter(function(k){return all.indexOf(k)>=0;});
+  }
+  return all;
+}
+function skillTd(sec,cat,item,idx,key){
+  var s=eA(sec),c=eA(cat),i=idx;
+  if(key==='name')return'<td><input class="ci" value="'+eA(item.name||'')+'" data-s="'+s+'" data-c="'+c+'" data-i="'+i+'" data-f="name" onchange="sf(this,false)"></td>';
+  if(key==='type')return'<td><div class="type-dd-btn" data-s="'+s+'" data-c="'+c+'" data-i="'+i+'" onclick="openSkillTypeDD(this)"><span>'+eH(item.type||'—')+'</span><span class="dd-arrow">▼</span></div></td>';
+  if(key==='circle')return'<td><div class="type-dd-btn" data-s="'+s+'" data-c="'+c+'" data-i="'+i+'" onclick="openCircleDD(this)"><span>'+eH(item.circle||'—')+'</span><span class="dd-arrow">▼</span></div></td>';
+  if(key==='direction')return'<td><div class="type-dd-btn" data-s="'+s+'" data-c="'+c+'" data-i="'+i+'" onclick="openDirDD(this)"><span>'+eH(item.direction||'—')+'</span><span class="dd-arrow">▼</span></div></td>';
+  if(key==='actions')return'<td><input class="ci" type="number" value="'+(item.actions||0)+'" data-s="'+s+'" data-c="'+c+'" data-i="'+i+'" data-f="actions" onchange="sf(this,true)"></td>';
+  if(key==='cost')return'<td><input class="ci" type="number" value="'+(item.cost||0)+'" data-s="'+s+'" data-c="'+c+'" data-i="'+i+'" data-f="cost" onchange="sf(this,true)"></td>';
+  if(key==='resource')return'<td><div class="type-dd-btn" data-s="'+s+'" data-c="'+c+'" data-i="'+i+'" onclick="openSkillResDD(this)"><span>'+eH(resLbl(item.resource||''))+'</span><span class="dd-arrow">▼</span></div></td>';
+  if(key==='learnCost')return'<td><input class="ci" type="number" value="'+(item.learnCost||0)+'" data-s="'+s+'" data-c="'+c+'" data-i="'+i+'" data-f="learnCost" onchange="sf(this,true)"></td>';
+  if(key==='desc')return'<td class="td-hl" data-sec="'+s+'" data-cat="'+c+'" data-idx="'+i+'" onclick="inlineSkillDesc(this)">'+hl(item.desc||'')+'</td>';
+  return'<td><input class="ci" value="'+eA(String(item[key]||''))+'" data-s="'+s+'" data-c="'+c+'" data-i="'+i+'" data-f="'+eA(key)+'" onchange="sf(this,false)"></td>';
+}
+function shopTd(cat,item,idx,key){
+  var c=eA(cat),i=idx;
+  if(key==='name')return'<td><input class="ci" value="'+eA(item.name||'')+'" data-c="'+c+'" data-i="'+i+'" data-f="name" onchange="sfShop(this,false)"></td>';
+  if(key==='type')return'<td><div class="type-dd-btn" data-c="'+c+'" data-i="'+i+'" onclick="openShopTypeDD(this)"><span>'+eH(item.type||'—')+'</span><span class="dd-arrow">▼</span></div></td>';
+  if(key==='cost')return'<td><input class="ci" type="number" value="'+(item.cost||0)+'" data-c="'+c+'" data-i="'+i+'" data-f="cost" onchange="sfShop(this,true)"></td>';
+  if(key==='resource')return'<td><div class="type-dd-btn" data-c="'+c+'" data-i="'+i+'" onclick="openShopResDD(this)"><span>'+eH(resLbl(item.resource||''))+'</span><span class="dd-arrow">▼</span></div></td>';
+  if(key==='effect')return'<td class="td-hl" data-cat="'+c+'" data-idx="'+i+'" onclick="inlineShopEffect(this)">'+hl(item.effect||'')+'</td>';
+  return'<td><input class="ci" value="'+eA(String(item[key]||''))+'" data-c="'+c+'" data-i="'+i+'" data-f="'+eA(key)+'" onchange="sfShop(this,false)"></td>';
+}
+var COL_DND={sec:null,key:null};
+function colDds(e,el){COL_DND={sec:el.dataset.sec,key:el.dataset.key};e.dataTransfer.effectAllowed='move';}
+function colDdo(e,el){e.preventDefault();e.stopPropagation();el.classList.add('col-drag-over');}
+function colDdl(el){el.classList.remove('col-drag-over');}
+function colDdd(e,el){
+  e.preventDefault();e.stopPropagation();el.classList.remove('col-drag-over');
+  var sec=el.dataset.sec,toKey=el.dataset.key;
+  if(!COL_DND.key||COL_DND.key===toKey||COL_DND.sec!==sec)return;
+  var order=getColOrder(sec).slice();
+  var fi=order.indexOf(COL_DND.key),ti=order.indexOf(toKey);
+  if(fi<0||ti<0)return;
+  order.splice(fi,1);order.splice(ti,0,COL_DND.key);
+  if(!S.cfg.colOrder)S.cfg.colOrder={};
+  S.cfg.colOrder[sec]=order;
+  if(sec==='shop')renderShop();else renderCats(sec);
+}
+var COL_CFG_DND={sec:null,key:null};
+function colCfgDs(e,el){COL_CFG_DND={sec:el.dataset.sec,key:el.dataset.key};e.dataTransfer.effectAllowed='move';}
+function colCfgDo(e,el){e.preventDefault();el.classList.add('cfg-drag-over');}
+function colCfgDl(el){el.classList.remove('cfg-drag-over');}
+function colCfgDd(e,el){
+  e.preventDefault();el.classList.remove('cfg-drag-over');
+  var sec=el.dataset.sec,toKey=el.dataset.key;
+  if(!COL_CFG_DND.key||COL_CFG_DND.key===toKey||COL_CFG_DND.sec!==sec)return;
+  var order=getColOrder(sec).slice();
+  var fi=order.indexOf(COL_CFG_DND.key),ti=order.indexOf(toKey);
+  if(fi<0||ti<0)return;
+  order.splice(fi,1);order.splice(ti,0,COL_CFG_DND.key);
+  if(!S.cfg.colOrder)S.cfg.colOrder={};
+  S.cfg.colOrder[sec]=order;
+  renderConfig();
+}
+function toggleCfg(k){CFG_OPEN[k]=!CFG_OPEN[k];renderConfig();}
+function updCatLabel(sec,key,val){S.db[sec][key].label=val;}
+function getCatThemes(){var ap=S.cfg&&S.cfg.appearance;var keys=ap&&ap.stripes?Object.keys(ap.stripes):['red','grey','green','turquoise','blue','purple','yellow','gold'];return[''].concat(keys);}
+function updCatTheme(sec,key,theme){
+  S.db[sec][key].style=theme?'stripe-'+theme:'';
+  S.db[sec][key].accent=theme?'accent-'+theme:'';
+  var sw=document.getElementById('cat-sw-'+sec+'-'+key);
+  if(sw){
+    var td=((S.cfg.appearance||{}).stripes||{})[theme]||{};
+    if(theme){
+      sw.style.display='inline-flex';sw.style.borderLeftColor=td.accent||'#888';
+      if(!sw.children.length){sw.innerHTML='<span style="flex:1"></span><span style="flex:1"></span>';}
+      if(sw.children[0])sw.children[0].style.background=td.darkBg||'#333';
+      if(sw.children[1])sw.children[1].style.background=td.lightBg||'#eee';
+    } else sw.style.display='none';
+  }
+}
+var LIB_DEFAULTS={glossary:{label:'Глоссарий',style:'stripe-grey'},classes:{label:'Классы',style:'stripe-blue'},races:{label:'Расы',style:'stripe-green'}};
+var LIB_CORE=['glossary','classes','races'];
+var LIB_ICONS={glossary:'📜',classes:'⚔️',races:'🧬'};
+function _libCfg(key){if(!S.cfg.libraryConfig)S.cfg.libraryConfig={};if(!S.cfg.libraryConfig[key])S.cfg.libraryConfig[key]=Object.assign({},LIB_DEFAULTS[key]||{label:key,style:''});return S.cfg.libraryConfig[key];}
+function updLibLabel(key,val){_libCfg(key).label=val;}
+function updLibTheme(key,theme){
+  _libCfg(key).style=theme?'stripe-'+theme:'';
+  var sw=document.getElementById('lib-sw-'+key);
+  if(sw){
+    var td=((S.cfg.appearance||{}).stripes||{})[theme]||{};
+    if(theme){
+      sw.style.display='inline-flex';sw.style.borderLeftColor=td.accent||'#888';
+      if(!sw.children.length){sw.innerHTML='<span style="flex:1"></span><span style="flex:1"></span>';}
+      if(sw.children[0])sw.children[0].style.background=td.darkBg||'#333';
+      if(sw.children[1])sw.children[1].style.background=td.lightBg||'#eee';
+    }else sw.style.display='none';
+  }
+  refreshPreviewRight();
+}
+function addLibFromCfg(){
+  var key=prompt('Ключ (English, например lore):');if(!key)return;
+  key=key.trim();if(!key)return;
+  if(!S.cfg.libraryConfig)S.cfg.libraryConfig={};
+  if(S.cfg.libraryConfig[key]){toast('Ключ «'+key+'» уже существует');return;}
+  var label=prompt('Название (русское):');if(!label)return;
+  S.cfg.libraryConfig[key]={label:label.trim(),style:''};
+  renderConfig();
+}
+function delLibFromCfg(key){
+  if(!confirm('Удалить раздел «'+key+'»?'))return;
+  delete S.cfg.libraryConfig[key];
+  renderConfig();
+}
+function renameLibKey(oldKey,newKey,el){
+  newKey=newKey.trim();
+  if(!newKey||newKey===oldKey){el.value=oldKey;return;}
+  if(!S.cfg.libraryConfig)S.cfg.libraryConfig={};
+  if(S.cfg.libraryConfig[newKey]){toast('Ключ «'+newKey+'» уже существует');el.value=oldKey;return;}
+  var cfg=S.cfg.libraryConfig,reordered={};
+  Object.keys(cfg).forEach(function(k){reordered[k===oldKey?newKey:k]=cfg[k===oldKey?oldKey:k];});
+  S.cfg.libraryConfig=reordered;
+  renderConfig();
+}
+
+function libTable(){
+  if(!S.cfg.libraryConfig)S.cfg.libraryConfig={};
+  LIB_CORE.forEach(function(k){if(!S.cfg.libraryConfig[k])S.cfg.libraryConfig[k]=Object.assign({},LIB_DEFAULTS[k]);});
+  var body='<table class="cfg-table"><thead><tr><th style="width:130px">Ключ</th><th>Название</th><th style="width:90px">Тема</th><th style="width:68px;text-align:center">🌙 ☀</th><th style="width:50px;text-align:right">Эл.</th><th style="width:34px"></th></tr></thead><tbody>';
+  Object.keys(S.cfg.libraryConfig).forEach(function(key){
+    var cfg=_libCfg(key);
+    var curTheme=(cfg.style||'').replace('stripe-','');
+    var td=((S.cfg.appearance||{}).stripes||{})[curTheme]||{};
+    var swId='lib-sw-'+key;
+    var swHtml=curTheme
+      ?'<span id="'+swId+'" style="display:inline-flex;width:62px;height:20px;border-radius:3px;overflow:hidden;border-left:3px solid '+eA(td.accent||'#888')+'"><span style="flex:1;background:'+eA(td.darkBg||'#333')+'"></span><span style="flex:1;background:'+eA(td.lightBg||'#eee')+'"></span></span>'
+      :'<span id="'+swId+'" style="display:none;width:62px;height:20px"></span>';
+    var cselOpts=getCatThemes().map(function(t){return'<div class="csel-opt'+(t===curTheme?' csel-sel':'')+'" data-val="'+eA(t)+'">'+(t?eH(t):'— нет —')+'</div>';}).join('');
+    var cselHtml='<div class="csel" data-libkey="'+eA(key)+'">'
+      +'<div class="csel-trg"><span class="csel-val">'+eH(curTheme||'— нет —')+'</span><span class="csel-arr">▼</span></div>'
+      +'<div class="csel-drop">'+cselOpts+'</div></div>';
+    var isCore=LIB_CORE.indexOf(key)>=0;
+    var count=key==='glossary'?(S.db.glossary||[]).length:Object.keys(S.db[key]||{}).length;
+    var keyCell=isCore
+      ?'<td style="font-family:monospace;font-size:12px;color:var(--muted)">'+(LIB_ICONS[key]||'📚')+' '+eH(key)+'</td>'
+      :'<td><input class="cfg-inp" value="'+eA(key)+'" data-key="'+eA(key)+'" style="font-family:monospace;font-size:12px;color:var(--muted)" onchange="renameLibKey(this.dataset.key,this.value,this)"></td>';
+    var delCell=isCore?'<td></td>':'<td><button class="btn-icon" data-key="'+eA(key)+'" onclick="delLibFromCfg(this.dataset.key)">✕</button></td>';
+    body+='<tr>'+
+      keyCell+
+      '<td><input class="cfg-inp" value="'+eA(cfg.label||key)+'" data-libkey="'+eA(key)+'" onchange="updLibLabel(this.dataset.libkey,this.value)"></td>'+
+      '<td>'+cselHtml+'</td>'+
+      '<td style="text-align:center">'+swHtml+'</td>'+
+      '<td style="text-align:right;color:var(--muted);font-size:12px">'+count+'</td>'+
+      delCell+
+    '</tr>';
+  });
+  body+='</tbody></table>';
+  return {body:body,foot:'<button class="btn btn-sm" onclick="addLibFromCfg()">+ Раздел</button>'};
+}
+
+function renameCatKey(sec,oldKey,newKey,el){
+  newKey=newKey.trim();
+  if(!newKey||newKey===oldKey){el.value=oldKey;return;}
+  if(S.db[sec][newKey]){toast('Ключ «'+newKey+'» уже существует');el.value=oldKey;return;}
+  var keys=Object.keys(S.db[sec]),data=S.db[sec];
+  var reordered={};
+  keys.forEach(function(k){reordered[k===oldKey?newKey:k]=data[k===oldKey?oldKey:k];});
+  S.db[sec]=reordered;
+  renderConfig();
+}
+function addCatFromCfg(sec){
+  var key=prompt('Ключ (English, например melee):');if(!key)return;
+  key=key.trim();if(!key||S.db[sec][key])return;
+  var label=prompt('Название (русское):');if(!label)return;
+  S.db[sec][key]={label:label.trim(),style:'',accent:'',items:[]};
+  renderConfig();
+}
+function delCatFromCfg(sec,key){
+  var n=(S.db[sec][key].items||[]).length;
+  if(n>0&&!confirm('В категории '+n+' элем. Удалить вместе с содержимым?'))return;
+  delete S.db[sec][key];renderConfig();
+}
+
+function colorCell(st,hex){
+  return '<div id="sw-'+eA(st)+'" class="cfg-swatch" style="background:'+eA(hex)+'" data-st="'+eA(st)+'" onclick="openCpop(this.dataset.st,this)"></div>';
+}
+
+/* ── Превью ─────────────────────────────────────────────────────────
+   renderPreview    — вызывает buildApStripes + buildApResources + buildApGlossary + buildApUI
+   buildApStripes   — таблица полос (accent/bg light/dark) с color-pickers
+   buildApResources — пикеры цветов ресурсов
+   buildApGlossary  — пикеры цветов глоссария
+   buildApUI        — пикеры bgColor/cardBg/textMain/textMuted
+   apColorPicker    — генерирует input[type=color] + hex-label
+   equalizePreviewRows — выравнивает высоту строк preview-таблиц */
+var AP_RES_ICONS={
+  lightning:'<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L3 14h9l-1 8 10-12h-9z"/></svg>',
+  mana:'<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>',
+  blood:'<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.593c-5.63-5.539-11-10.297-11-14.402 0-3.791 3.068-5.191 5.281-5.191 1.312 0 4.151.501 5.719 4.457 1.59-3.968 4.464-4.447 5.726-4.447 2.54 0 5.274 1.621 5.274 5.181 0 4.069-5.136 8.625-11 14.402z"/></svg>',
+  gold:'<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none"/><circle cx="12" cy="12" r="5" fill="currentColor"/></svg>'
+};
+var AP_RES_NAMES_MAP={lightning:'Энергия',mana:'Мана',blood:'Здоровье',gold:'Золото'};
+
+function equalizePreviewRows(){
+  ['dark','light'].forEach(function(thm){
+    var cats=document.querySelectorAll('.mp-cat-'+thm);
+    var gp=document.querySelector('.mp-lib-'+thm);
+    cats.forEach(function(p){p.style.minHeight='';});
+    if(gp){gp.style.height='';gp.style.overflow='';}
+    var maxH=0;
+    cats.forEach(function(p){maxH=Math.max(maxH,p.offsetHeight);});
+    if(!maxH)return;
+    cats.forEach(function(p){p.style.minHeight=maxH+'px';});
+    if(gp){gp.style.height=maxH+'px';gp.style.overflow='hidden';}
+  });
+}
+
+function initCfgResize(){
+  var handle=document.getElementById('ap-resize-handle');
+  if(!handle)return;
+  var dragging=false,startX=0,startW=0;
+  handle.onmousedown=function(e){
+    dragging=true;startX=e.clientX;
+    var col=document.getElementById('ap-cfg-col');
+    startW=col?col.offsetWidth:AP_CFG_WIDTH;
+    handle.style.background='var(--accent)';
+    document.body.style.cursor='col-resize';
+    document.body.style.userSelect='none';
+    document.onmousemove=function(ev){
+      if(!dragging)return;
+      var w=Math.max(180,Math.min(620,startW+(ev.clientX-startX)));
+      AP_CFG_WIDTH=w;
+      var c=document.getElementById('ap-cfg-col');
+      if(c)c.style.width=w+'px';
+    };
+    document.onmouseup=function(){
+      dragging=false;
+      handle.style.background='var(--border)';
+      document.body.style.cursor='';
+      document.body.style.userSelect='';
+      document.onmousemove=null;document.onmouseup=null;
+    };
+    e.preventDefault();
+  };
+  handle.onmouseenter=function(){if(!dragging)handle.style.background='var(--accent)';};
+  handle.onmouseleave=function(){if(!dragging)handle.style.background='var(--border)';};
+}
+
+function setPrevView(v){PREV_VIEW=v;refreshPreviewRight();}
+
+/* ── Shared preview helpers ─────────────────────────────────────────────── */
+var PREV_DEFS={
+  dark:{bgColor:'#0b0c10',cardBg:'#1f232d',textMain:'#ffffff',textMuted:'#8a8d9a'},
+  light:{bgColor:'#c0c0c0',cardBg:'#ffffff',textMain:'#111118',textMuted:'#4a4850'}
+};
+var PREV_W='220px';
+var CARD_TITLE_SZ='11px', CARD_SUB_SZ='9px', CARD_DESC_SZ='9px';
+
+function mkTheme(ap,isLight){
+  var src=isLight?(ap.light||{}):(ap.dark||{});
+  var def=isLight?PREV_DEFS.light:PREV_DEFS.dark;
+  function dv(k){return src[k]||def[k]||'';}
+  var gl=ap.glossary||{};
+  var bc=isLight?(gl.badgeLight||'#009e9b'):(gl.badgeDark||'#ffc107');
+  var bgC=dv('bgColor');
+  var scrOp=src.screenOpacity!=null?parseFloat(src.screenOpacity):(isLight?0.88:0.85);
+  var screenBg=blendHex(bgC,isLight?'#f7f7f9':'#0b0c10',scrOp);
+  return{bgColor:bgC,cardBg:dv('cardBg'),textMain:dv('textMain'),textMuted:dv('textMuted'),
+    screenBg:screenBg,
+    hdrBg:isLight?'#eeeef2':'#16181f',hdrBorder:isLight?'#d0d0d8':'#2a2e3a',
+    footerBg:isLight?'#dddde4':'#0d0f14',panelBorder:isLight?'#ccc':'#333',
+    badgeColor:bc,label:isLight?'☀ Светлая':'🌙 Тёмная'};
+}
+
+function mkStripe(ap,style,isLight,defAcc){
+  var stripes=ap.stripes||{};
+  var tname=(style||'').replace('stripe-','');
+  var sd=tname?(stripes[tname]||{}):{};
+  return{bg:isLight?(sd.lightBg||''):(sd.darkBg||''),acc:isLight?(sd.lightAccent||defAcc):(sd.accent||defAcc)};
+}
+
+function stripeRow(label,sbg,sacc,textC,mutedC){
+  return '<div style="background:'+eA(sbg)+';border-radius:5px;border-left:3px solid '+eA(sacc)+';padding:5px 7px;margin-bottom:4px;display:flex;align-items:center;justify-content:space-between">'
+    +'<span style="font-size:10px;font-weight:500;color:'+eA(textC)+';overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:calc('+PREV_W+' - 40px)">'+eH(label)+'</span>'
+    +'<span style="color:'+eA(mutedC)+';font-size:9px;flex-shrink:0">→</span>'
+    +'</div>';
+}
+
+function panelWrap(th,title,subtitle,content,cls){
+  var h='<div'+(cls?' class="'+eA(cls)+'"':'')+' style="border-radius:10px;overflow:hidden;border:2px solid '+eA(th.panelBorder)+';width:'+PREV_W+';min-width:'+PREV_W+';flex-shrink:0;display:flex;flex-direction:column">';
+  h+='<div style="background:'+eA(th.hdrBg)+';padding:7px 10px;border-bottom:1px solid '+eA(th.hdrBorder)+';flex-shrink:0">';
+  h+='<span style="font-size:11px;font-weight:700;color:'+eA(th.textMain)+'">'+eH(title)+'</span>';
+  if(subtitle)h+='<div style="font-size:9px;color:'+eA(th.textMuted)+';margin-top:1px">'+eH(subtitle)+'</div>';
+  h+='</div>';
+  h+='<div style="background:'+eA(th.screenBg)+';padding:7px;flex:1;overflow-y:auto">'+content+'</div>';
+  h+='<div style="background:'+eA(th.footerBg)+';padding:3px 8px;text-align:center;flex-shrink:0">';
+  h+='<span style="font-size:9px;color:'+eA(th.textMuted)+'">'+eH(th.label)+'</span>';
+  h+='</div></div>';
+  return h;
+}
+
+function prevHighlight(text,bc){
+  var gl=S.db&&S.db.glossary||[];
+  if(!gl.length||!text)return eH(text);
+  var rgb=hexRgb(bc);
+  var ps='color:'+bc+';background:rgba('+rgb+',0.10);border:1px solid rgba('+rgb+',0.30);border-radius:3px;padding:0 4px;font-weight:600;cursor:pointer';
+  var terms=gl.map(function(g){return g.term||'';}).filter(Boolean).sort(function(a,b){return b.length-a.length;});
+  if(!terms.length)return eH(text);
+  var re=new RegExp('('+terms.map(function(t){return t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}).join('|')+')','gi');
+  var termSet={};terms.forEach(function(t){termSet[t.toLowerCase()]=true;});
+  return text.split(re).map(function(p){
+    return termSet[p.toLowerCase()]?'<span style="'+ps+'">'+eH(p)+'</span>':eH(p);
+  }).join('');
+}
+
+function cardItem(th,name,sub,desc,acc){
+  var h='<div style="background:'+eA(th.cardBg)+';border-left:3px solid '+eA(acc||th.textMuted)+';border-radius:5px;padding:5px 7px;margin-bottom:4px">';
+  if(name)h+='<div style="font-size:'+CARD_TITLE_SZ+';font-weight:700;color:'+eA(th.textMain)+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+eH(name)+'</div>';
+  if(sub)h+='<div style="font-size:'+CARD_SUB_SZ+';color:'+eA(th.textMuted)+';margin-top:1px">'+eH(sub)+'</div>';
+  if(desc)h+='<div style="font-size:'+CARD_DESC_SZ+';color:'+eA(th.textMuted)+';margin-top:2px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">'+prevHighlight(desc.substring(0,120),th.badgeColor)+'</div>';
+  h+='</div>';
+  return h;
+}
+
+function rowBgStyle(ap,isLight){
+  var src=isLight?(ap.light||{}):(ap.dark||{});
+  var def=isLight?PREV_DEFS.light:PREV_DEFS.dark;
+  return'background:'+(src.bgColor||def.bgColor)+';';
+}
+
+function pillDemo(bc){
+  var rgb=hexRgb(bc);
+  return '<span style="display:inline-flex;align-items:center;color:'+bc+';background:rgba('+rgb+',0.10);border:1px solid rgba('+rgb+',0.30);border-radius:4px;padding:1px 8px;font-size:11px;font-weight:600">промах</span>';
+}
+
+
+function buildPreviewCards(){
+  var ap=getAp();
+  function getCat(sec,pref){var c=S.db[sec]||{};return c[pref]?pref:(Object.keys(c)[0]||'');}
+  var skillCat=getCat('skills','Контактный бой');
+  var magicCat=getCat('magic','Техномантия');
+  var shopCat=getCat('shop','Боеприпасы');
+  var firstClass=Object.keys(S.db.classes||{})[0]||'';
+  var firstRace=Object.keys(S.db.races||{})[0]||'';
+  var lcfg=S.cfg.libraryConfig||{};
+
+  function buildRow(isLight){
+    var th=mkTheme(ap,isLight);
+    var h='';
+
+    if(skillCat){
+      var cat=S.db.skills[skillCat]||{};
+      var sc=mkStripe(ap,cat.style,isLight,th.textMuted);
+      h+=panelWrap(th,'Навыки',skillCat,(cat.items||[]).slice(0,4).map(function(it){
+        return cardItem(th,it.name,it.type||'',it.desc||'',sc.acc);
+      }).join(''));
+    }
+
+    if(magicCat){
+      var mcat=S.db.magic[magicCat]||{};
+      var mc=mkStripe(ap,mcat.style,isLight,th.textMuted);
+      h+=panelWrap(th,'Магия',magicCat,(mcat.items||[]).slice(0,4).map(function(it){
+        return cardItem(th,it.name,[it.direction||it.type,it.circle].filter(Boolean).join(' · '),it.desc||'',mc.acc);
+      }).join(''));
+    }
+
+    if(shopCat){
+      var scat=S.db.shop[shopCat]||{};
+      var scc=mkStripe(ap,scat.style,isLight,th.textMuted);
+      h+=panelWrap(th,'Лавка',shopCat,(scat.items||[]).slice(0,4).map(function(it){
+        return cardItem(th,it.name,it.cost?('Цена: '+it.cost):'',it.effect||it.desc||'',scc.acc);
+      }).join(''));
+    }
+
+    var gsc=mkStripe(ap,(lcfg.glossary||{}).style,isLight,th.textMuted);
+    h+=panelWrap(th,'Библиотека','Глоссарий',(S.db.glossary||[]).slice(0,4).map(function(g){
+      return cardItem(th,g.term,'',g.def||'',gsc.acc);
+    }).join(''));
+
+    return h;
+  }
+
+  var h='';
+  h+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px"><span style="font-size:15px">🌙</span><span style="font-weight:600;font-size:13px">Тёмная тема</span></div>';
+  h+='<div style="display:flex;gap:10px;overflow-x:auto;padding:12px;align-items:stretch;border-radius:10px;margin-bottom:4px;'+rowBgStyle(ap,false)+'">'+buildRow(false)+'</div>';
+  h+='<div style="display:flex;align-items:center;gap:6px;margin:14px 0 8px"><span style="font-size:15px">☀️</span><span style="font-weight:600;font-size:13px">Светлая тема</span></div>';
+  h+='<div style="display:flex;gap:10px;overflow-x:auto;padding:12px;align-items:stretch;border-radius:10px;'+rowBgStyle(ap,true)+'">'+buildRow(true)+'</div>';
+  return h;
+}
+
+function buildPreviewPanels(){
+  var ap=getAp();
+  var SECS=['skills','magic','shop','library'];
+  var TITLES={skills:'Навыки',magic:'Магия',shop:'Лавка',library:'Библиотека'};
+  var LIB_DEF={glossary:{label:'Глоссарий',style:'stripe-grey'},classes:{label:'Классы',style:'stripe-blue'},races:{label:'Расы',style:'stripe-green'}};
+
+  function miniPanel(sec,isLight){
+    var th=mkTheme(ap,isLight);
+    var thm=isLight?'light':'dark';
+    var isLib=sec==='library';
+    var content='';
+
+    if(isLib){
+      var lcfg=S.cfg.libraryConfig||{};
+      ['glossary','classes','races'].forEach(function(k){
+        var c=lcfg[k]||LIB_DEF[k];
+        var sc=mkStripe(ap,c.style,isLight,th.textMuted);
+        content+=stripeRow(c.label||LIB_DEF[k].label,sc.bg||th.cardBg,sc.acc,th.textMain,th.textMuted);
+      });
+    } else {
+      Object.keys(S.db[sec]||{}).forEach(function(key){
+        var cat=(S.db[sec]||{})[key];
+        var sc=mkStripe(ap,cat.style,isLight,th.textMuted);
+        content+=stripeRow(cat.label||key,sc.bg||th.cardBg,sc.acc,th.textMain,th.textMuted);
+      });
+    }
+    return panelWrap(th,TITLES[sec]||sec,'',content,'mp-panel '+(isLib?'mp-lib-'+thm:'mp-cat-'+thm));
+  }
+
+  var btnBase='padding:4px 14px;border-radius:4px;font-size:11px;cursor:pointer;border:1px solid var(--border)';
+  var btnAct=btnBase+';background:var(--accent,#2979ff);color:#fff;border-color:transparent';
+  var btnInact=btnBase+';background:transparent;color:var(--text-muted)';
+  var h='<div style="display:flex;gap:6px;margin-bottom:14px">';
+  h+='<button onclick="setPrevView(\'groups\')" style="'+eA(PREV_VIEW==='groups'?btnAct:btnInact)+'">Группы</button>';
+  h+='<button onclick="setPrevView(\'cards\')" style="'+eA(PREV_VIEW==='cards'?btnAct:btnInact)+'">Карточки</button>';
+  h+='</div>';
+  if(PREV_VIEW==='cards'){h+=buildPreviewCards();return h;}
+  h+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px"><span style="font-size:15px">🌙</span><span style="font-weight:600;font-size:13px">Тёмная тема</span></div>';
+  h+='<div id="mp-row-dark" style="display:flex;gap:10px;overflow-x:auto;padding:12px;align-items:stretch;border-radius:10px;margin-bottom:4px;'+rowBgStyle(ap,false)+'">';
+  SECS.forEach(function(s){h+=miniPanel(s,false);});
+  h+='</div>';
+  h+='<div style="display:flex;align-items:center;gap:6px;margin:14px 0 8px"><span style="font-size:15px">☀️</span><span style="font-weight:600;font-size:13px">Светлая тема</span></div>';
+  h+='<div id="mp-row-light" style="display:flex;gap:10px;overflow-x:auto;padding:12px;align-items:stretch;border-radius:10px;'+rowBgStyle(ap,true)+'">';
+  SECS.forEach(function(s){h+=miniPanel(s,true);});
+  h+='</div>';
+  return h;
+}
+
+function refreshPreviewRight(){
+  if(TAB!=='preview')return;
+  var col=document.getElementById('ap-prev-col');
+  if(col){col.innerHTML=buildPreviewPanels();requestAnimationFrame(equalizePreviewRows);}
+}
+
+function renderPreview(){
+  var ct=document.getElementById('ct');
+  ct.style.cssText='flex:1;overflow:hidden;display:flex;padding:0';
+  ct.innerHTML=
+    '<div id="ap-cfg-col" style="width:'+AP_CFG_WIDTH+'px;min-width:180px;overflow-y:auto;padding:14px;flex-shrink:0">'+
+    buildAppearancePanel()+
+    '</div>'+
+    '<div id="ap-resize-handle" style="width:5px;background:var(--border);flex-shrink:0;cursor:col-resize;transition:background .15s"></div>'+
+    '<div id="ap-prev-col" style="flex:1;overflow-y:auto;padding:14px">'+
+    buildPreviewPanels()+
+    '</div>';
+  initCfgResize();
+  requestAnimationFrame(equalizePreviewRows);
+}
+
+/* ── Конфигуратор внешнего вида ─────────────────────────────────────
+   AP_STRIPE_NAMES / AP_RES_NAMES / AP_UI_FIELDS — ключи из config.json
+   AP_RES_LABELS / AP_UI_LABELS — русские подписи для каждого ключа */
+var AP_STRIPE_NAMES=['red','grey','green','turquoise','blue','purple','yellow','gold'];
+var AP_RES_NAMES=['lightning','mana','blood','gold'];
+var AP_RES_LABELS={lightning:'Молния / Энергия',mana:'Мана',blood:'Кровь / HP',gold:'Золото'};
+var AP_UI_FIELDS=['bgColor','cardBg','textMain','textMuted'];
+var AP_UI_LABELS={bgColor:'Фон страницы',cardBg:'Фон карточек',textMain:'Основной текст',textMuted:'Второстепенный текст'};
+
+function getAp(){
+  if(!S.cfg.appearance)S.cfg.appearance={stripes:{},resources:{},bgImage:'',dark:{},light:{},glossary:{}};
+  var ap=S.cfg.appearance;
+  if(!ap.stripes)ap.stripes={};
+  if(!ap.resources)ap.resources={};
+  if(!ap.dark)ap.dark={};
+  if(!ap.light)ap.light={};
+  if(!ap.glossary)ap.glossary={};
+  return ap;
+}
+
+function updStripe(name,field,val){
+  var ap=getAp();
+  if(!ap.stripes[name])ap.stripes[name]={};
+  ap.stripes[name][field]=val;
+  refreshPreviewRight();
+}
+
+function updResource(name,val){
+  var ap=getAp();
+  ap.resources[name]=val;
+  var el=document.getElementById('ap-res-prev-'+name);
+  var lb=document.getElementById('ap-res-lbl-'+name);
+  if(el){el.style.background=val+'22';el.style.color=val;el.style.borderColor=val+'55';}
+  if(lb)lb.textContent=val;
+  refreshPreviewRight();
+}
+
+function updBgImage(val){
+  val=val.trim();getAp().bgImage=val;
+  var p=document.getElementById('ap-bg-preview');
+  if(!p)return;
+  if(val&&p.tagName==='IMG'){p.src=val;}
+  else{rebuildApLeft();}
+}
+function updBgOverlay(mode,val){
+  var ap=getAp(); ap[mode].bgOverlay=parseFloat(parseFloat(val).toFixed(2));
+  var el=document.getElementById('ap-ov-'+mode+'-val'); if(el)el.textContent=parseFloat(val).toFixed(2);
+  refreshPreviewRight();
+}
+function updScreenOpacity(mode,val){
+  var ap=getAp(); ap[mode].screenOpacity=parseFloat(parseFloat(val).toFixed(2));
+  var el=document.getElementById('ap-scr-'+mode+'-val'); if(el)el.textContent=parseFloat(val).toFixed(2);
+  refreshPreviewRight();
+}
+function updUiColor(mode,field,val){var ap=getAp();ap[mode][field]=val;refreshPreviewRight();}
+
+function apColorPicker(id,val,cb){
+  return '<input type="color" id="'+id+'" value="'+eA(val)+'" '+
+    'onchange="'+cb+'" oninput="'+cb+'" '+
+    'style="width:36px;height:28px;cursor:pointer;border:none;background:none;padding:0;vertical-align:middle">';
+}
+
+/* ── Левая панель конфигуратора ─────────────────────────────────────
+   renderAppearance — строит форму appearance (вкладка превью, левая колонка)
+   updStripColor    — сохраняет одно поле stripe в config.json
+   updResColor      — сохраняет цвет ресурса
+   updUIColor       — сохраняет UI-цвет (bgColor/cardBg/…) в dark или light секцию */
+function toggleApSection(k){AP_SECTION_OPEN[k]=!AP_SECTION_OPEN[k];rebuildApLeft();}
+function rebuildApLeft(){var c=document.getElementById('ap-cfg-col');if(c)c.innerHTML=buildAppearancePanel();}
+function apSecDs(e,k){AP_DND_SEC=k;e.dataTransfer.effectAllowed='move';}
+function apSecDo(e,k){if(AP_DND_SEC&&AP_DND_SEC!==k)e.preventDefault();}
+function apSecDl(el){el.classList.remove('ap-over');}
+function apSecDd(e,k){
+  e.preventDefault();if(!AP_DND_SEC||AP_DND_SEC===k)return;
+  var f=AP_SECTION_ORDER.indexOf(AP_DND_SEC),t=AP_SECTION_ORDER.indexOf(k);
+  if(f<0||t<0)return;
+  AP_SECTION_ORDER.splice(f,1);AP_SECTION_ORDER.splice(t,0,AP_DND_SEC);
+  AP_DND_SEC=null;rebuildApLeft();
+}
+
+function buildAppearancePanel(){
+  var ap=getAp();
+  var h='';
+  AP_SECTION_ORDER.forEach(function(sec){h+=buildApSec(sec,ap);});
+  return h;
+}
+
+function buildApSec(sec,ap){
+  var TITLES={stripes:'Стиль блоков',colors:'Основные цвета',bg:'Фоновое изображение',glossary:'Стиль глоссария'};
+  var open=AP_SECTION_OPEN[sec];
+  var sn=sec.replace(/'/g,"\\'");
+  var h='<div class="ap-sec" draggable="false" ondragstart="apSecDs(event,\''+sn+'\')" ondragend="this.draggable=false" ondragover="apSecDo(event,\''+sn+'\');this.classList.add(\'ap-over\')" ondrop="apSecDd(event,\''+sn+'\')" ondragleave="apSecDl(this)">';
+  h+='<div class="ap-sec-hdr" onclick="toggleApSection(\''+sn+'\')">';
+  h+='<span onmousedown="this.closest(\'.ap-sec\').draggable=true" onmouseup="this.closest(\'.ap-sec\').draggable=false" style="cursor:grab;color:var(--muted);font-size:14px;line-height:1;margin-right:2px;user-select:none">⠿</span>';
+  h+='<span style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;flex:1">'+eH(TITLES[sec]||sec)+'</span>';
+  h+='<span style="font-size:11px;color:var(--muted)">'+(open?'▼':'▶')+'</span>';
+  h+='</div>';
+  if(open)h+='<div style="padding:4px 0 14px">'+buildApSecBody(sec,ap)+'</div>';
+  h+='</div>';
+  return h;
+}
+
+function buildApSecBody(sec,ap){
+  if(sec==='stripes') return buildApStripes(ap);
+  if(sec==='colors')  return buildApColors(ap);
+  if(sec==='bg')      return buildApBg(ap);
+  return '';
+}
+
+var AP_BUILTIN_STRIPES=['red','grey','green','turquoise','blue','purple','yellow','gold'];
+
+function buildApStripes(ap){
+  var h='<div style="overflow-x:auto"><table class="cfg-table">';
+  h+='<thead><tr><th style="min-width:70px">Тема</th>';
+  h+='<th title="Акцент ночной темы">Штрих (Н)</th>';
+  h+='<th title="Фон ночной темы">Фон (Н)</th>';
+  h+='<th title="Акцент дневной темы">Штрих (Д)</th>';
+  h+='<th style="width:60px" title="Фон дневной темы">Фон (Д)</th>';
+  h+='<th style="width:24px"></th></tr></thead><tbody>';
+  Object.keys(ap.stripes||{}).forEach(function(name){
+    var s=ap.stripes[name]||{};
+    var accent=s.accent||'#888888',darkBg=s.darkBg||'#222222',lightBg=s.lightBg||'#f0f0f0',lightAccent=s.lightAccent||'#666666';
+    var canDel=AP_BUILTIN_STRIPES.indexOf(name)<0;
+    var n=name.replace(/'/g,"\\'");
+    h+='<tr>';
+    h+='<td style="font-weight:500;font-family:monospace;font-size:11px">'+eH(name)+'</td>';
+    h+='<td>'+apColorPicker('ap-ac-'+name,accent,'updStripe(\''+n+'\',\'accent\',this.value)')+'</td>';
+    h+='<td>'+apColorPicker('ap-db-'+name,darkBg,'updStripe(\''+n+'\',\'darkBg\',this.value)')+'</td>';
+    h+='<td>'+apColorPicker('ap-la-'+name,lightAccent,'updStripe(\''+n+'\',\'lightAccent\',this.value)')+'</td>';
+    h+='<td>'+apColorPicker('ap-lb-'+name,lightBg,'updStripe(\''+n+'\',\'lightBg\',this.value)')+'</td>';
+    h+='<td>'+(canDel?'<button class="btn-icon" onclick="delCustomStripe(\''+n+'\')" title="Удалить">✕</button>':'')+'</td>';
+    h+='</tr>';
+  });
+  h+='</tbody></table>';
+  h+='<div style="padding:8px 0 2px"><button class="btn btn-sm" onclick="addCustomStripe()">+ Новая тема</button></div>';
+  h+='</div>';
+  return h;
+}
+
+function buildApColors(ap){
+  var DEFAULTS={dark:{bgColor:'#0b0c10',cardBg:'#1f232d',textMain:'#ffffff',textMuted:'#8a8d9a'},
+                light:{bgColor:'#c0c0c0',cardBg:'#ffffff',textMain:'#111118',textMuted:'#4a4850'}};
+  var h='<table class="cfg-table"><thead><tr><th>Название</th><th style="text-align:center">Светлая</th><th style="text-align:center">Тёмная</th></tr></thead><tbody>';
+  AP_UI_FIELDS.forEach(function(field){
+    var vl=(ap.light||{})[field]||DEFAULTS.light[field]||'#888888';
+    var vd=(ap.dark||{})[field]||DEFAULTS.dark[field]||'#888888';
+    h+='<tr><td style="font-size:12px">'+eH(AP_UI_LABELS[field]||field)+'</td>';
+    h+='<td style="text-align:center">'+apColorPicker('ap-ui-light-'+field,vl,'updUiColor(\'light\',\''+field+'\',this.value)')+'</td>';
+    h+='<td style="text-align:center">'+apColorPicker('ap-ui-dark-'+field,vd,'updUiColor(\'dark\',\''+field+'\',this.value)')+'</td>';
+    h+='</tr>';
+  });
+  var gl=ap.glossary||{};
+  var badgeL=gl.badgeLight||'#009e9b', badgeD=gl.badgeDark||'#ffc107';
+  h+='<tr><td style="font-size:12px" title="Пилюля Левенштейна и оконтовка попапа — один цвет">Глоссарий</td>';
+  h+='<td style="text-align:center">'+apColorPicker('ap-gl-badge-l',badgeL,'updGlossaryColor(\'badgeLight\',this.value)')+'</td>';
+  h+='<td style="text-align:center">'+apColorPicker('ap-gl-badge-d',badgeD,'updGlossaryColor(\'badgeDark\',this.value)')+'</td>';
+  h+='</tr>';
+  h+='</tbody></table>';
+  return h;
+}
+
+function apOpRow(label,id,val,cb){
+  var v=parseFloat(val).toFixed(2);
+  return'<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">'
+    +'<span style="font-size:11px;color:var(--text);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+eH(label)+'</span>'
+    +'<input type="range" id="'+eA(id)+'" min="0" max="1" step="0.01" value="'+eA(v)+'" oninput="'+eA(cb)+'" style="width:80px;flex-shrink:0;cursor:pointer">'
+    +'<span id="'+eA(id)+'-val" style="font-size:10px;color:var(--muted);width:26px;text-align:right;flex-shrink:0">'+eH(v)+'</span>'
+    +'</div>';
+}
+
+function buildApBg(ap){
+  var bgUrl=ap.bgImage||'';
+  var d=ap.dark||{}, l=ap.light||{};
+  var dOv=d.bgOverlay!=null?parseFloat(d.bgOverlay):0.75;
+  var lOv=l.bgOverlay!=null?parseFloat(l.bgOverlay):0.70;
+  var dScr=d.screenOpacity!=null?parseFloat(d.screenOpacity):0.85;
+  var lScr=l.screenOpacity!=null?parseFloat(l.screenOpacity):0.88;
+  var h='<input id="ap-bg-url-inp" style="width:100%;box-sizing:border-box;font-size:11px;font-family:monospace;padding:5px 8px;border:1px solid var(--border);border-radius:4px;background:var(--surface2);color:var(--text);outline:none" '+
+    'placeholder="https://..." value="'+eA(bgUrl)+'" oninput="updBgImage(this.value)" onchange="updBgImage(this.value)">';
+  if(bgUrl){
+    h+='<img id="ap-bg-preview" src="'+eA(bgUrl)+'" style="margin-top:8px;width:100%;border-radius:6px;border:1px solid var(--border);display:block;max-height:160px;object-fit:cover" onerror="this.style.display=\'none\'">';
+  } else {
+    h+='<div id="ap-bg-preview" style="margin-top:8px;border-radius:6px;height:60px;background:var(--surface2);border:1px solid var(--border);opacity:0.5;display:flex;align-items:center;justify-content:center"><span style="font-size:11px;color:var(--muted)">введи URL</span></div>';
+  }
+  h+='<div style="margin-top:12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:8px">Непрозрачность</div>';
+  h+='<div style="font-size:10px;color:var(--muted);margin-bottom:4px;font-weight:600">🌙 Тёмная</div>';
+  h+=apOpRow('Без меню (фон)','ap-ov-dark',dOv,"updBgOverlay('dark',this.value)");
+  h+=apOpRow('Экраны поверх','ap-scr-dark',dScr,"updScreenOpacity('dark',this.value)");
+  h+='<div style="font-size:10px;color:var(--muted);margin:8px 0 4px;font-weight:600">☀ Светлая</div>';
+  h+=apOpRow('Без меню (фон)','ap-ov-light',lOv,"updBgOverlay('light',this.value)");
+  h+=apOpRow('Экраны поверх','ap-scr-light',lScr,"updScreenOpacity('light',this.value)");
+  return h;
+}
+
+
+function updGlossaryColor(k,val){
+  var ap=getAp();if(!ap.glossary)ap.glossary={};
+  ap.glossary[k]=val;refreshPreviewRight();
+}
+
+function addCustomStripe(){
+  var name=prompt('Название темы (только a-z, 0-9, - _):');
+  if(!name)return;
+  name=name.trim().replace(/[^a-z0-9_-]/gi,'').toLowerCase();
+  if(!name){toast('Недопустимое название');return;}
+  var ap=getAp();
+  if(ap.stripes[name]){toast('Тема «'+name+'» уже существует');return;}
+  ap.stripes[name]={accent:'#888888',darkBg:'#222222',lightBg:'#f0f0f0',lightAccent:'#666666'};
+  rebuildApLeft();refreshPreviewRight();
+}
+
+function delCustomStripe(name){
+  if(AP_BUILTIN_STRIPES.indexOf(name)>=0)return;
+  var ap=getAp();
+  delete ap.stripes[name];
+  rebuildApLeft();refreshPreviewRight();
+}
+
+/* ── Конфиг: строитель панелей и скрытие статов ────────────────────
+   cfgPanel      — генерирует collapsible .panel с заголовком и телом
+   renderConfig  — секции ресурсов, слотов, типов, кастомных столбцов
+   toggleCfg     — открывает/закрывает секцию через CFG_OPEN[key] */
+function cfgPanel(key,title,body,foot){
+  var open=CFG_OPEN[key];
+  return '<div class="panel" id="cfg-panel-'+key+'">'+
+    '<h3 onclick="toggleCfg(\''+key+'\')"><span class="ph-arr">'+(open?'▼':'▶')+'</span>'+title+'</h3>'+
+    (open?'<div class="panel-body">'+body+(foot?'<div style="margin-top:8px">'+foot+'</div>':'')+'</div>':'')+
+  '</div>';
+}
+
+function renderConfig(){
+  var cfg=S.cfg,res=cfg.resources||{};
+  var resColors=(S.cfg.appearance||{}).resources||{};
+  var resBody='<table class="cfg-table"><thead><tr><th style="width:24px"></th><th>Ключ</th><th>Перевод</th><th style="width:120px">Цвет пилюли</th><th style="width:34px"></th></tr></thead><tbody>';
+  Object.keys(res).forEach(function(k,ci){
+    var rVal=resColors[k]||'#888888';
+    var icon=AP_RES_ICONS[k]||'';
+    var pillStyle='display:inline-flex;align-items:center;gap:3px;background:'+rVal+'22;color:'+rVal+';border:1px solid '+rVal+'55;border-radius:4px;padding:1px 6px;font-size:11px;font-weight:600';
+    resBody+='<tr draggable="true" data-ci="'+ci+'" data-sec="res" ondragstart="cfgDs(event,this)" ondragover="cfgDo(event,this)" ondrop="cfgDd(event,this,\'res\')" ondragleave="cfgDl(this)">'+
+      '<td><span class="cfg-dh">⠿</span></td>'+
+      '<td><input class="cfg-inp" value="'+eA(k)+'" data-old="'+eA(k)+'" onchange="renameRes(this.dataset.old,this.value,this)"></td>'+
+      '<td><input class="cfg-inp" value="'+eA(res[k]||'')+'" data-k="'+eA(k)+'" onchange="S.cfg.resources[this.dataset.k]=this.value"></td>'+
+      '<td style="white-space:nowrap">'+
+        apColorPicker('ap-rc-'+k,rVal,'updResource(\''+k+'\',this.value)')+
+        ' <span id="ap-res-prev-'+k+'" style="'+eA(pillStyle)+'">'+icon+' '+eH(res[k]||k)+'</span>'+
+      '</td>'+
+      '<td><button class="btn-icon" data-k="'+eA(k)+'" onclick="delRes(this.dataset.k)">✕</button></td></tr>';
+  });
+  resBody+='</tbody></table>';
+
+  var statBody='<table class="cfg-table"><thead><tr><th style="width:24px"></th><th>Стат</th><th>Тип</th><th style="width:36px">Цвет</th><th>Источники</th><th style="width:34px"></th></tr></thead><tbody>';
+  Object.keys(cfg.statTypes).forEach(function(st,ci){
+    var hex=cfg.statColors[st]||'#888888';
+    statBody+='<tr draggable="true" data-ci="'+ci+'" data-sec="stats" ondragstart="cfgDs(event,this)" ondragover="cfgDo(event,this)" ondrop="cfgDd(event,this,\'stats\')" ondragleave="cfgDl(this)">'+
+      '<td><span class="cfg-dh">⠿</span></td>'+
+      '<td><input class="cfg-inp" value="'+eA(st)+'" data-old="'+eA(st)+'" onchange="renameStat(this.dataset.old,this.value,this)"></td>'+
+      '<td><select class="cfg-sel" data-st="'+eA(st)+'" onchange="S.cfg.statTypes[this.dataset.st]=this.value">'+
+        STAT_OPT.map(function(t){return'<option'+(cfg.statTypes[st]===t?' selected':'')+'>'+t+'</option>';}).join('')+'</select></td>'+
+      '<td>'+colorCell(st,hex)+'</td>'+
+      '<td><input class="cfg-inp" value="'+eA((cfg.statSources[st]||[]).join(', '))+'" data-st="'+eA(st)+'" onchange="updSrc(this.dataset.st,this.value)"></td>'+
+      '<td><button class="btn-icon" data-st="'+eA(st)+'" onclick="delStat(this.dataset.st)">✕</button></td>'+
+    '</tr>';
+  });
+  statBody+='</tbody></table>';
+
+  var slotBody='<table class="cfg-table"><thead><tr><th style="width:24px"></th><th>Ключ</th><th>Метка</th><th style="width:34px"></th></tr></thead><tbody>';
+  cfg.equipSlots.forEach(function(sl,idx){
+    slotBody+='<tr draggable="true" data-ci="'+idx+'" data-sec="slots" ondragstart="cfgDs(event,this)" ondragover="cfgDo(event,this)" ondrop="cfgDd(event,this,\'slots\')" ondragleave="cfgDl(this)">'+
+      '<td><span class="cfg-dh">⠿</span></td>'+
+      '<td><input class="cfg-inp" value="'+eA(sl.key)+'" data-i="'+idx+'" onchange="S.cfg.equipSlots[+this.dataset.i].key=this.value"></td>'+
+      '<td><input class="cfg-inp" value="'+eA(sl.label)+'" data-i="'+idx+'" onchange="S.cfg.equipSlots[+this.dataset.i].label=this.value"></td>'+
+      '<td><button class="btn-icon" data-i="'+idx+'" onclick="delSlot(+this.dataset.i)">✕</button></td></tr>';
+  });
+  slotBody+='</tbody></table>';
+
+  var cc=cfg.customCols||{};
+  var colBody='<table class="cfg-table"><thead><tr><th style="width:24px"></th><th>Секция</th><th>Ключ</th><th>Название</th><th style="width:34px"></th></tr></thead><tbody>';
+  ['skills','magic','shop'].forEach(function(sec){
+    var secLabel=COL_SEC_LABELS[sec]||sec;
+    getColOrder(sec).forEach(function(key){
+      var isCustom=!!(cc[sec]&&cc[sec].find(function(c){return c.key===key;}));
+      colBody+='<tr draggable="true" data-sec="'+eA(sec)+'" data-key="'+eA(key)+'" ondragstart="colCfgDs(event,this)" ondragover="colCfgDo(event,this)" ondrop="colCfgDd(event,this)" ondragleave="colCfgDl(this)">'+
+        '<td><span class="cfg-dh">⠿</span></td>'+
+        '<td style="color:var(--muted);font-size:12px">'+eH(secLabel)+'</td>'+
+        '<td><code style="font-size:12px;color:'+(isCustom?'var(--accent)':'var(--muted)')+'">'+eH(key)+'</code></td>'+
+        '<td><input class="cfg-inp" value="'+eA(colLbl(sec,key))+'" data-sec="'+eA(sec)+'" data-k="'+eA(key)+'" onchange="updColLabel(this.dataset.sec,this.dataset.k,this.value)"></td>'+
+        (isCustom?'<td><button class="btn-icon" data-sec="'+eA(sec)+'" data-k="'+eA(key)+'" onclick="delCustomCol(this.dataset.sec,this.dataset.k)">✕</button></td>':'<td></td>')+
+      '</tr>';
+    });
+  });
+  colBody+='</tbody></table>';
+
+  var circles=getMagicCircles();
+  var circleBody='<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:2px 0">';
+  circles.forEach(function(c,idx){
+    circleBody+='<div class="circle-pill">'+
+      '<input value="'+eA(c)+'" data-idx="'+idx+'" onchange="updMagicCircle(+this.dataset.idx,this.value)">'+
+      '<button class="btn-icon" data-idx="'+idx+'" onclick="delMagicCircle(+this.dataset.idx)">✕</button>'+
+    '</div>';
+  });
+  circleBody+='<button class="btn btn-sm" onclick="addMagicCircle()">+ Круг</button></div>';
+
+  var dirs=getMagicDirections();
+  var dirBody='';
+  dirs.forEach(function(g,di){
+    dirBody+=
+      '<div class="dir-grp">'+
+        '<div class="dir-grp-head">'+
+          '<input class="type-cfg-inp" value="'+eA(g.name)+'" data-di="'+di+'" style="font-weight:700;font-size:13px" onchange="updMagicDir(+this.dataset.di,this.value)">'+
+          '<input class="type-cfg-inp" value="'+eA((g.circles||[]).join(', '))+'" data-di="'+di+'" placeholder="все круги" title="Доступные круги" style="width:80px;flex-shrink:0;font-size:11px;color:var(--muted)" onchange="updMagicDirCircles(+this.dataset.di,this.value)">'+
+          '<button class="btn-icon" data-di="'+di+'" onclick="delMagicDir(+this.dataset.di)" style="margin-left:4px">✕</button>'+
+        '</div>';
+    (g.subs||[]).forEach(function(sub,si){
+      dirBody+='<div class="dir-sub-row">'+
+        '<span style="color:var(--muted);margin-right:6px;font-size:11px">└</span>'+
+        '<input class="type-cfg-inp" value="'+eA(sub)+'" data-di="'+di+'" data-si="'+si+'" onchange="updMagicSub(+this.dataset.di,+this.dataset.si,this.value)">'+
+        '<button class="btn-icon" data-di="'+di+'" data-si="'+si+'" onclick="delMagicSub(+this.dataset.di,+this.dataset.si)">✕</button>'+
+      '</div>';
+    });
+    dirBody+='<div class="dir-sub-row"><button class="btn btn-sm" style="opacity:.7;font-size:11px" data-di="'+di+'" onclick="addMagicSub(+this.dataset.di)">+ Направление</button></div>'+
+    '</div>';
+  });
+  dirBody+='<button class="btn btn-sm" onclick="addMagicDir()" style="margin-top:4px">+ Школа</button>';
+
+  var secNames={skills:'Навыки',magic:'Магия',shop:'Лавка'};
+  var typeBody='<div class="type-cfg-grid">';
+  ['skills','magic','shop'].forEach(function(sec){
+    var types=getItemTypes(sec);
+    typeBody+='<div>'+
+      '<div class="type-cfg-head">'+eH(secNames[sec])+
+        '<button class="btn btn-sm" data-sec="'+eA(sec)+'" onclick="addItemType(this.dataset.sec)">+ Тип</button></div>';
+    types.forEach(function(t,idx){
+      typeBody+='<div class="type-cfg-row">'+
+        '<input class="type-cfg-inp" value="'+eA(t)+'" data-sec="'+eA(sec)+'" data-idx="'+idx+'" onchange="updItemType(this.dataset.sec,+this.dataset.idx,this.value)">'+
+        '<button class="btn-icon" data-sec="'+eA(sec)+'" data-idx="'+idx+'" onclick="delItemType(this.dataset.sec,+this.dataset.idx)">✕</button>'+
+      '</div>';
+    });
+    typeBody+='</div>';
+  });
+  typeBody+='</div>';
+
+  function catTable(sec,addLabel){
+    var body='<table class="cfg-table"><thead><tr><th style="width:130px">Ключ</th><th>Название</th><th style="width:90px">Тема</th><th style="width:68px;text-align:center">🌙 ☀</th><th style="width:50px;text-align:right">Эл.</th><th style="width:34px"></th></tr></thead><tbody>';
+    Object.keys(S.db[sec]).forEach(function(key){
+      var cat=S.db[sec][key];
+      var curTheme=(cat.accent||'').replace('accent-','');
+      var td=((S.cfg.appearance||{}).stripes||{})[curTheme]||{};
+      var swId='cat-sw-'+eA(sec)+'-'+eA(key);
+      var swHtml=curTheme
+        ?'<span id="'+swId+'" style="display:inline-flex;width:62px;height:20px;border-radius:3px;overflow:hidden;border-left:3px solid '+eA(td.accent||'#888')+'"><span style="flex:1;background:'+eA(td.darkBg||'#333')+'"></span><span style="flex:1;background:'+eA(td.lightBg||'#eee')+'"></span></span>'
+        :'<span id="'+swId+'" style="display:none;width:62px;height:20px"></span>';
+      var cselOpts=getCatThemes().map(function(t){
+        return '<div class="csel-opt'+(t===curTheme?' csel-sel':'')+'" data-val="'+eA(t)+'">'+(t?eH(t):'— нет —')+'</div>';
+      }).join('');
+      var cselHtml='<div class="csel" data-sec="'+eA(sec)+'" data-key="'+eA(key)+'">'
+        +'<div class="csel-trg">'
+        +'<span class="csel-val">'+eH(curTheme||'— нет —')+'</span>'
+        +'<span class="csel-arr">▼</span>'
+        +'</div>'
+        +'<div class="csel-drop">'+cselOpts+'</div>'
+        +'</div>';
+      body+='<tr>'+
+        '<td><input class="cfg-inp" value="'+eA(key)+'" data-sec="'+eA(sec)+'" data-key="'+eA(key)+'" style="font-family:monospace;font-size:12px;color:var(--muted)" onchange="renameCatKey(this.dataset.sec,this.dataset.key,this.value,this)"></td>'+
+        '<td><input class="cfg-inp" value="'+eA(cat.label||key)+'" data-sec="'+eA(sec)+'" data-key="'+eA(key)+'" onchange="updCatLabel(this.dataset.sec,this.dataset.key,this.value)"></td>'+
+        '<td>'+cselHtml+'</td>'+
+        '<td style="text-align:center">'+swHtml+'</td>'+
+        '<td style="text-align:right;color:var(--muted);font-size:12px">'+((cat.items||[]).length)+'</td>'+
+        '<td><button class="btn-icon" data-sec="'+eA(sec)+'" data-key="'+eA(key)+'" onclick="delCatFromCfg(this.dataset.sec,this.dataset.key)">✕</button></td>'+
+      '</tr>';
+    });
+    body+='</tbody></table>';
+    return {body:body,foot:'<button class="btn btn-sm" data-sec="'+eA(sec)+'" onclick="addCatFromCfg(this.dataset.sec)">+ '+addLabel+'</button>'};
+  }
+  var sc=catTable('skills','Ветвь'),mc=catTable('magic','Школу'),shc=catTable('shop','Категорию');
+
+  var lb=libTable();
+
+  document.getElementById('ct').innerHTML=
+    cfgPanel('skillCats','Ветви навыков',sc.body,sc.foot)+
+    cfgPanel('magicCats','Школы магии',mc.body,mc.foot)+
+    cfgPanel('shopCats','Категории лавки',shc.body,shc.foot)+
+    cfgPanel('libCats','Библиотека',lb.body,lb.foot)+
+    cfgPanel('res','Ресурсы',resBody,'<button class="btn btn-sm" onclick="addRes()">+ Ресурс</button>')+
+    cfgPanel('stats','Характеристики',statBody,'<button class="btn btn-sm" onclick="addStat()">+ Стат</button>')+
+    cfgPanel('slots','Слоты снаряжения',slotBody,'<button class="btn btn-sm" onclick="addSlot()">+ Слот</button>')+
+    cfgPanel('cols','Столбцы',colBody,'')+
+    cfgPanel('types','Типы элементов',typeBody,'')+
+    cfgPanel('circles','Круги магии',circleBody,'')+
+    cfgPanel('dirs','Направления магии',dirBody,'')+
+    cfgPanel('vl','allVladenie','<textarea class="dr-ta" style="min-height:42px" onchange="S.cfg.allVladenie=pcsv(this.value)">'+eH(cfg.allVladenie.join(', '))+'</textarea>','')+
+    cfgPanel('kh','allKhar','<textarea class="dr-ta" style="min-height:42px" onchange="S.cfg.allKhar=pcsv(this.value)">'+eH(cfg.allKhar.join(', '))+'</textarea>','')+
+    cfgPanel('worker','Загрузка изображений',
+        '<div style="font-size:11px;color:var(--muted);margin-bottom:8px;">Cloudflare Worker для загрузки изображений на imgBB. Если не задан — изображения хранятся локально.</div>'
+        +'<label style="font-size:11px;color:var(--muted);display:block;margin-bottom:3px;">Worker URL</label>'
+        +'<input type="text" class="dr-inp" placeholder="https://upload.example.workers.dev" value="'+eH(cfg.uploadUrl||cfg.workerUrl||'')+'" oninput="S.cfg.uploadUrl=this.value.trim()" style="font-family:monospace;width:100%;box-sizing:border-box;">',
+    '');
+}
+
+/* ── Всплывающее окно выбора цвета (stat colors) ───────────────────
+   openCpop — привязывает #cpop к позиции кликнутого .cfg-swatch
+   closeCpop — скрывает попап; mousedown вне попапа закрывает автоматически */
+var CPOP_ST=null;
+document.addEventListener('mousedown',function(e){var p=document.getElementById('cpop');if(p&&!p.contains(e.target)&&!e.target.classList.contains('cfg-swatch'))closeCpop();});
+function openCpop(st,el){
+  CPOP_ST=st;var hex=S.cfg.statColors[st]||'#888888';
+  document.getElementById('cp-col').value=hex;
+  document.getElementById('cp-hex').value=hex;
+  var pop=document.getElementById('cpop'),rect=el.getBoundingClientRect();
+  pop.style.left=Math.min(rect.left,window.innerWidth-200)+'px';pop.style.top=(rect.bottom+6)+'px';pop.style.display='block';
+}
+function closeCpop(){document.getElementById('cpop').style.display='none';CPOP_ST=null;}
+function cpApply(hex){if(!CPOP_ST)return;S.cfg.statColors[CPOP_ST]=hex;var sw=document.getElementById('sw-'+CPOP_ST);if(sw)sw.style.background=hex;}
+function cpColCh(el){document.getElementById('cp-hex').value=el.value;cpApply(el.value);}
+function cpHexCh(el){var v=el.value.trim();if(!/^#[0-9a-fA-F]{6}$/.test(v))return;document.getElementById('cp-col').value=v;cpApply(v);}
+
+/* ── DnD конфиг-строк (слоты снаряжения, типы предметов) ── */
+var CFG_DND={sec:null,idx:null};
+function cfgDs(e,tr){CFG_DND={sec:tr.dataset.sec,idx:+tr.dataset.ci};e.dataTransfer.effectAllowed='move';}
+function cfgDo(e,tr){e.preventDefault();tr.classList.add('cfg-drag-over');}
+function cfgDl(tr){tr.classList.remove('cfg-drag-over');}
+function cfgDd(e,tr,sec){
+  e.preventDefault();tr.classList.remove('cfg-drag-over');
+  var from=CFG_DND.idx,to=+tr.dataset.ci;if(from===to)return;
+  if(sec==='res'){var keys=Object.keys(S.cfg.resources),key=keys.splice(from,1)[0];keys.splice(to,0,key);var nO={};keys.forEach(function(k){nO[k]=S.cfg.resources[k];});S.cfg.resources=nO;}
+  else if(sec==='stats'){var keys=Object.keys(S.cfg.statTypes),key=keys.splice(from,1)[0];keys.splice(to,0,key);var nt={},nc={},ns={};keys.forEach(function(k){nt[k]=S.cfg.statTypes[k];nc[k]=S.cfg.statColors[k];ns[k]=S.cfg.statSources[k];});S.cfg.statTypes=nt;S.cfg.statColors=nc;S.cfg.statSources=ns;}
+  else if(sec==='slots'){S.cfg.equipSlots.splice(to,0,S.cfg.equipSlots.splice(from,1)[0]);}
+  renderConfig();
+}
+
+function addItemType(sec){var t=prompt('Название типа:');if(!t)return;t=t.trim();if(!S.cfg.itemTypes)S.cfg.itemTypes={};if(!S.cfg.itemTypes[sec])S.cfg.itemTypes[sec]=getItemTypes(sec).slice();S.cfg.itemTypes[sec].push(t);renderConfig();}
+function delItemType(sec,idx){if(!S.cfg.itemTypes)S.cfg.itemTypes={};if(!S.cfg.itemTypes[sec])S.cfg.itemTypes[sec]=getItemTypes(sec).slice();S.cfg.itemTypes[sec].splice(idx,1);renderConfig();}
+function updItemType(sec,idx,val){val=val.trim();if(!val)return;if(!S.cfg.itemTypes)S.cfg.itemTypes={};if(!S.cfg.itemTypes[sec])S.cfg.itemTypes[sec]=getItemTypes(sec).slice();S.cfg.itemTypes[sec][idx]=val;}
+function _ensureCircles(){if(!S.cfg.magicCircles)S.cfg.magicCircles=getMagicCircles().slice();}
+function addMagicCircle(){var t=prompt('Круг (например VI):');if(!t)return;_ensureCircles();S.cfg.magicCircles.push(t.trim());renderConfig();}
+function delMagicCircle(idx){_ensureCircles();S.cfg.magicCircles.splice(idx,1);renderConfig();}
+function updMagicCircle(idx,val){val=val.trim();if(!val)return;_ensureCircles();S.cfg.magicCircles[idx]=val;}
+function _ensureDirs(){if(!S.cfg.magicDirections)S.cfg.magicDirections=JSON.parse(JSON.stringify(getMagicDirections()));}
+function addMagicDir(){var n=prompt('Название направления:');if(!n)return;_ensureDirs();S.cfg.magicDirections.push({name:n.trim(),subs:[]});renderConfig();}
+function delMagicDir(di){_ensureDirs();S.cfg.magicDirections.splice(di,1);renderConfig();}
+function updMagicDir(di,val){val=val.trim();if(!val)return;_ensureDirs();S.cfg.magicDirections[di].name=val;}
+function addMagicSub(di){var n=prompt('Название поднаправления:');if(!n)return;_ensureDirs();S.cfg.magicDirections[di].subs.push(n.trim());renderConfig();}
+function delMagicSub(di,si){_ensureDirs();S.cfg.magicDirections[di].subs.splice(si,1);renderConfig();}
+function updMagicSub(di,si,val){val=val.trim();if(!val)return;_ensureDirs();S.cfg.magicDirections[di].subs[si]=val;}
+function updMagicDirCircles(di,val){_ensureDirs();S.cfg.magicDirections[di].circles=val?val.split(',').map(function(s){return s.trim();}).filter(Boolean):[];}
+function addRes(){var k=prompt('Ключ:');if(!k)return;if(!S.cfg.resources)S.cfg.resources={};S.cfg.resources[k]='';renderConfig();}
+function delRes(k){delete S.cfg.resources[k];renderConfig();}
+function renameRes(o,n,el){if(!n||n===o)return;S.cfg.resources[n]=S.cfg.resources[o];delete S.cfg.resources[o];el.dataset.old=n;}
+function renameStat(o,n,el){if(!n||n===o)return;var c=S.cfg;c.statTypes[n]=c.statTypes[o];delete c.statTypes[o];if(c.statColors[o]!==undefined){c.statColors[n]=c.statColors[o];delete c.statColors[o];}if(c.statSources[o]!==undefined){c.statSources[n]=c.statSources[o];delete c.statSources[o];}el.dataset.old=n;}
+function updSrc(st,v){S.cfg.statSources[st]=pcsv(v);}
+function pcsv(v){return v.split(',').map(function(s){return s.trim();}).filter(Boolean);}
+function addStat(){var n=prompt('Стат:');if(!n)return;S.cfg.statTypes[n]='владение';S.cfg.statColors[n]='#888888';if(!S.cfg.statSources)S.cfg.statSources={};S.cfg.statSources[n]=[];renderConfig();}
+function delStat(st){delete S.cfg.statTypes[st];delete S.cfg.statColors[st];if(S.cfg.statSources)delete S.cfg.statSources[st];renderConfig();}
+function addSlot(){S.cfg.equipSlots.push({key:'',label:''});renderConfig();}
+function delSlot(idx){S.cfg.equipSlots.splice(idx,1);renderConfig();}
+
+/* ── DnD строк таблицы ───────────────────────────────────────────────
+   rDs/rDo/rDl/rDd — dragstart/over/leave/drop для строк items
+   cSecDs/cSecDo/cSecDl/cSecDd — DnD для заголовков категорий */
+function dhDown(span){var tr=span.closest('tr');if(tr)tr.draggable=true;}
+document.addEventListener('mouseup',function(){document.querySelectorAll('tr[draggable="true"]').forEach(function(tr){tr.draggable=false;});});
+function rdStart(e,tr){DND_ROW={sec:tr.dataset.sec,cat:tr.dataset.cat,idx:+tr.dataset.idx};tr.classList.add('dragging');e.dataTransfer.effectAllowed='move';}
+function rdOver(e,tr){
+  if(DND_ROW.sec&&tr.dataset.sec&&DND_ROW.sec!==tr.dataset.sec)return;
+  e.preventDefault();tr.classList.add('drag-over-top');
+}
+function rdLeave(tr){tr.classList.remove('drag-over-top');}
+function clearCrossCatFields(item,sec,toCat){
+  if(sec!=='magic')return;
+  var catLabel=(S.db.magic[toCat]&&(S.db.magic[toCat].label||toCat))||toCat;
+  var matched=getMagicDirections().find(function(g){return g.name===catLabel||g.name===toCat;});
+  if(!matched)return;
+  var dir=item.direction||'';
+  if(dir&&matched.subs.indexOf(dir)<0){item.direction='';item.circle='';}
+}
+function rdDrop(e,tr){
+  e.preventDefault();tr.classList.remove('drag-over-top');
+  var toCat=tr.dataset.cat,toIdx=+tr.dataset.idx,toSec=tr.dataset.sec;
+  var sec=DND_ROW.sec,fromCat=DND_ROW.cat,fromIdx=DND_ROW.idx;
+  if(!sec)return;
+  if(sec==='glossary'){
+    if(fromIdx===toIdx)return;
+    var arr=S.db.glossary;arr.splice(toIdx,0,arr.splice(fromIdx,1)[0]);render();return;
+  }
+  if(toSec!==sec)return;
+  if(fromCat===toCat){
+    if(fromIdx===toIdx)return;
+    S.db[sec][fromCat].items.splice(toIdx,0,S.db[sec][fromCat].items.splice(fromIdx,1)[0]);
+  } else {
+    var item=S.db[sec][fromCat].items.splice(fromIdx,1)[0];
+    clearCrossCatFields(item,sec,toCat);
+    S.db[sec][toCat].items.splice(toIdx,0,item);
+  }
+  render();
+}
+
+/* ── Скачивание данных ───────────────────────────────────────────────
+   dlJSON(obj, name) — сериализует объект и скачивает как .json
+   dlAll             — скачивает db.json и config.json одновременно */
+function fr(label,input){return'<div class="fr"><div class="fl">'+label+'</div><div class="fv">'+input+'</div></div>';}
+function frImg(label,input){return fr(label,'<div style="display:flex;gap:4px;align-items:center;">'+input.replace('<input ','<input style="flex:1;min-width:0;" ')+'<button class="art-up-btn" onclick="editorPickArt(this)" title="Загрузить с устройства">↑</button></div>');}
+
+var _TR={'а':'a','б':'b','в':'v','г':'g','д':'d','е':'e','ё':'yo','ж':'zh','з':'z','и':'i','й':'j','к':'k','л':'l','м':'m','н':'n','о':'o','п':'p','р':'r','с':'s','т':'t','у':'u','ф':'f','х':'h','ц':'ts','ч':'ch','ш':'sh','щ':'sch','ъ':'','ы':'y','ь':'','э':'e','ю':'yu','я':'ya'};
+function translit(s){return(s||'').toLowerCase().split('').map(function(c){return _TR[c]!==undefined?_TR[c]:c;}).join('').replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'').slice(0,48);}
+
+var _editorUploadTarget=null;
+var _editorUploadName='img';
+function editorPickArt(btn){
+    _editorUploadTarget=btn.previousElementSibling;
+    _editorUploadName=translit(_editorUploadTarget.dataset.imgPrefix||'img');
+    document.getElementById('editorFileInput').click();
+}
+document.addEventListener('DOMContentLoaded',function(){
+    document.getElementById('editorFileInput').addEventListener('change',function(e){
+        var file=e.target.files[0]; if(!file||!_editorUploadTarget) return;
+        var target=_editorUploadTarget;
+        var name=_editorUploadName;
+        e.target.value='';
+        var reader=new FileReader();
+        reader.onload=function(ev){
+            var src=ev.target.result;
+            var wu=S.cfg.uploadUrl||S.cfg.workerUrl||'';
+            if(wu){
+                fetch(wu,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image:src,name:name})})
+                .then(function(r){return r.json();})
+                .then(function(j){
+                    if(j.success&&j.link){target.value=j.link;target.dispatchEvent(new Event('change'));}
+                    else{toast('Ошибка загрузки');}
+                })
+                .catch(function(){toast('Нет соединения');});
+            } else {
+                target.value=src;
+                target.dispatchEvent(new Event('change'));
+            }
+        };
+        reader.readAsDataURL(file);
+    });
+});
+function dlDb(){dlJson(S.db,'db.json');toast('db.json скачан');}
+function dlCfg(){dlJson(S.cfg,'config.json');toast('config.json скачан');}
+function dlJson(data,fname){var b=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});var u=URL.createObjectURL(b);var a=document.createElement('a');a.href=u;a.download=fname;a.click();URL.revokeObjectURL(u);}
+function openImgPopup(src){if(!src)return;document.getElementById('img-popup-img').src=src;document.getElementById('img-popup').style.display='flex';}
+function closeImgPopup(){document.getElementById('img-popup').style.display='none';document.getElementById('img-popup-img').src='';}
+</script>
+<div id="img-popup" onclick="closeImgPopup()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:99999;align-items:center;justify-content:center;cursor:zoom-out;">
+  <img id="img-popup-img" src="" alt="" onclick="event.stopPropagation()" style="max-width:92vw;max-height:92vh;border-radius:8px;object-fit:contain;cursor:default">
+</div>
+<input type="file" id="editorFileInput" accept="image/*" style="display:none;">
+</body>
+</html>

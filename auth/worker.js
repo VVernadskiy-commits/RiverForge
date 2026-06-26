@@ -267,7 +267,7 @@ async function handleRequest(request, env, corsHeaders) {
 
         var logsRaw = await env.CHARS.get('logs:' + user.discord_id);
         var logs    = logsRaw ? JSON.parse(logsRaw) : [];
-        logs.unshift({ ts: Date.now(), char_id: meta.char_id || null, char_name: meta.char_name || '—', level: meta.level || '—', cls: meta.cls || '—', race: meta.race || '—', gold: meta.gold || 0 });
+        logs.unshift({ ts: Date.now(), char_id: meta.char_id || null, char_name: meta.char_name || '—', level: meta.level || '—', cls: meta.cls || '—', race: meta.race || '—', gold: meta.gold || 0, vladenie: meta.vladenie || {}, equipment_slots: meta.equipment_slots || [], skills_count: meta.skills_count || 0, magic_count: meta.magic_count || 0 });
         if (logs.length > 500) logs = logs.slice(0, 500);
         await env.CHARS.put('logs:' + user.discord_id, JSON.stringify(logs));
 
