@@ -3,7 +3,7 @@
 <head>
     <link rel="icon" href="/RiverForge/public/icon-192.png" type="image/png">
     <meta charset="UTF-8">
-    <meta name="application-version" content="v0.7.7">
+    <meta name="application-version" content="v0.7.8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RiverForge</title>
     <meta name="description" content="Цифровой лист персонажа и игровой справочник для НРИ">
@@ -1618,9 +1618,16 @@
         </div>
     </div>
 
+    <!-- ПОПАП ВЫБОРА ДРОПДАУНА -->
+    <div id="dselPopup" style="display:none;position:absolute;top:0;left:0;width:100%;height:calc(100% - 70px);background:rgba(0,0,0,0.55);z-index:9998;" onclick="dselClose()">
+        <div id="dselPopupBox" onclick="event.stopPropagation()" style="position:absolute;left:50%;transform:translateX(-50%);top:50%;transform:translate(-50%,-50%);width:72%;max-height:60%;background:#1c1f2b;border:1.5px solid #28a745;border-radius:14px;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.7);">
+            <div id="dselPopupList" style="padding:6px;"></div>
+        </div>
+    </div>
+
     <!-- ОВЕРЛЕЙ ПОРТРЕТА — полноэкранный просмотр -->
-    <div id="portraitOverlay" style="display:none;position:absolute;top:0;left:0;width:100%;height:calc(100% - 70px);background:rgba(0,0,0,0.97);z-index:15;align-items:center;justify-content:center;flex-direction:column;">
-        <div class="art-overlay-top-btns">
+    <div id="portraitOverlay" style="display:none;position:absolute;top:0;left:0;width:100%;height:calc(100% - 70px);background:rgba(0,0,0,0.97);z-index:15;align-items:center;justify-content:center;flex-direction:column;" onclick="closePortraitOverlay()">
+        <div class="art-overlay-top-btns" onclick="event.stopPropagation()">
             <button class="art-overlay-btn del" onclick="deletePortraitArt()">🗑</button>
             <button class="art-overlay-btn" onclick="replacePortraitArt()">↻</button>
         </div>
@@ -4697,11 +4704,10 @@
     }
 
     function dselClose() {
-        document.querySelectorAll('.dsel-drop[data-dsel-owner]').forEach(function(d) {
-            var owner = document.getElementById(d.dataset.dselOwner);
-            if (owner) owner.appendChild(d);
-            d.removeAttribute('data-dsel-owner');
-        });
+        var popup = document.getElementById('dselPopup');
+        var list  = document.getElementById('dselPopupList');
+        if (popup) popup.style.display = 'none';
+        if (list)  { list.innerHTML = ''; list.removeAttribute('data-dsel-owner'); }
         document.querySelectorAll('.dsel-drop').forEach(function(d){ d.style.display='none'; });
         document.querySelectorAll('.dsel-trg.open').forEach(function(t){ t.classList.remove('open'); });
     }
@@ -4709,18 +4715,14 @@
         var trg = dsel.querySelector('.dsel-trg'), drop = dsel.querySelector('.dsel-drop');
         if (!trg || !drop) return;
         dselClose();
-        var phone = document.querySelector('.phone-container');
-        if (!phone) return;
-        var tRect = trg.getBoundingClientRect();
-        var pRect = phone.getBoundingClientRect();
-        drop.dataset.dselOwner = dsel.id;
-        phone.appendChild(drop);
-        drop.style.top  = Math.round(tRect.bottom - pRect.top  + 4) + 'px';
-        drop.style.left = Math.round(tRect.left   - pRect.left    ) + 'px';
-        drop.style.minWidth = Math.round(tRect.width) + 'px';
-        drop.style.display = 'block';
+        var popup = document.getElementById('dselPopup');
+        var list  = document.getElementById('dselPopupList');
+        if (!popup || !list) return;
+        list.innerHTML = drop.innerHTML;
+        list.dataset.dselOwner = dsel.id;
+        popup.style.display = 'block';
         trg.classList.add('open');
-        var sel = drop.querySelector('.dsel-sel');
+        var sel = list.querySelector('.dsel-sel');
         if (sel) setTimeout(function(){ sel.scrollIntoView({block:'nearest'}); }, 0);
     }
     document.addEventListener('click', function(e) {
@@ -4731,8 +4733,12 @@
         }
         var opt = e.target.closest('.dsel-opt');
         if (opt) {
+            var popupList = document.getElementById('dselPopupList');
+            var ownerId = (popupList && popupList.contains(opt)) ? popupList.dataset.dselOwner : null;
             var drop = opt.closest('.dsel-drop');
-            var ds = opt.closest('.dsel') || (drop && drop.dataset.dselOwner ? document.getElementById(drop.dataset.dselOwner) : null);
+            var ds = (ownerId ? document.getElementById(ownerId) : null)
+                  || opt.closest('.dsel')
+                  || (drop && drop.dataset.dselOwner ? document.getElementById(drop.dataset.dselOwner) : null);
             if (ds) {
                 var val = opt.dataset.val || '';
                 var valEl = ds.querySelector('.dsel-val');
