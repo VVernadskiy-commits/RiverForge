@@ -3,7 +3,7 @@
 <head>
     <link rel="icon" href="/RiverForge/public/icon-192.png" type="image/png">
     <meta charset="UTF-8">
-    <meta name="application-version" content="v0.7.3">
+    <meta name="application-version" content="v0.7.4">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RiverForge</title>
     <meta name="description" content="Цифровой лист персонажа и игровой справочник для НРИ">
@@ -3065,7 +3065,7 @@
         fetch(UPLOAD_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ image: dataUrl, name: name || 'img' })
+            body: JSON.stringify({ image: dataUrl, name: name || 'img', char_id: currentCharId || 'shared' })
         })
         .then(function(r) { return r.json(); })
         .then(function(j) {
