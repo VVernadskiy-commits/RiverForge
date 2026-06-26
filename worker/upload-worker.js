@@ -36,20 +36,19 @@ export default {
       return json({ success: false, error: 'invalid_image' }, 400);
     }
 
-    const charId   = body.char_id ? String(body.char_id) : 'shared';
-    const fileName = (body.name || 'img').slice(0, 64).replace(/[^a-zA-Z0-9_\-]/g, '_');
-    const publicId = 'characters/' + charId + '/' + fileName;
+    const charId    = body.char_id ? String(body.char_id) : 'shared';
+    const folder    = 'characters/' + charId;
     const timestamp = Math.floor(Date.now() / 1000);
 
-    // SHA-1 подпись: только public_id и timestamp (алфавитный порядок: p < t)
-    const paramsToSign = 'public_id=' + publicId + '&timestamp=' + timestamp;
+    // SHA-1 подпись: folder и timestamp (алфавитный порядок: f < t)
+    const paramsToSign = 'folder=' + folder + '&timestamp=' + timestamp;
     const signature = await sha1(paramsToSign + env.CLOUDINARY_API_SECRET);
 
     const form = new FormData();
     form.append('file',      dataUrl);
     form.append('api_key',   env.CLOUDINARY_API_KEY);
     form.append('timestamp', String(timestamp));
-    form.append('public_id', publicId);
+    form.append('folder',    folder);
     form.append('signature', signature);
 
     let res;
