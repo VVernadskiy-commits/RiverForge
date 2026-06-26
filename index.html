@@ -3,7 +3,7 @@
 <head>
     <link rel="icon" href="/RiverForge/public/icon-192.png" type="image/png">
     <meta charset="UTF-8">
-    <meta name="application-version" content="v0.6.6">
+    <meta name="application-version" content="v0.7.0">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RiverForge</title>
     <meta name="description" content="Цифровой лист персонажа и игровой справочник для НРИ">
@@ -1490,6 +1490,7 @@
     <div class="screen" id="screen-character">
         <div class="screen-header" style="justify-content:space-between;">
             <span>Персонажи</span>
+            <button id="adminPanelBtn" onclick="openAdminPanel()" style="display:none;background:rgba(255,77,77,0.12);border:1px solid rgba(255,77,77,0.4);color:#ff4d4d;padding:4px 10px;border-radius:6px;font-size:12px;cursor:pointer;align-items:center;gap:4px;">⚙ Модерация</button>
             <button class="char-add-btn" onclick="addNewCharacter()">+ Добавить</button>
         </div>
         <div class="scrollable-content" id="character-list-container"></div>
@@ -5768,12 +5769,27 @@
         });
     }
 
+    var _isAdmin = false;
+
     async function loadCharsFromServer() {
         try {
-                var res = await fetch(WORKER_URL + '/chars/all');
-            if (!res.ok) return;
-            var serverChars = await res.json();
-            if (!Array.isArray(serverChars)) return;
+            var token = localStorage.getItem('rf_token');
+            var headers = token ? { 'Authorization': 'Bearer ' + token } : {};
+            var res = await fetch(WORKER_URL + '/chars/all', { headers: headers });
+            if (!res.ok) {
+                if (res.status === 403) {
+                    var err = {}; try { err = await res.json(); } catch(e2) {}
+                    if (err.error === 'banned') { showBanScreen(err.reason); }
+                }
+                return;
+            }
+            var data = await res.json();
+            var serverChars = Array.isArray(data) ? data : (data.chars || []);
+            _isAdmin = !Array.isArray(data) && !!data.is_admin;
+            var sec = document.getElementById('devOwnerSection');
+            if (sec && _isAdmin) sec.style.display = 'block';
+            var adminPanelBtn = document.getElementById('adminPanelBtn');
+            if (adminPanelBtn) adminPanelBtn.style.display = _isAdmin ? 'flex' : 'none';
             var local = loadChars();
             var localOnly = local.filter(function(c) { return !c.owner_id; });
             var starMap = {};
@@ -5784,6 +5800,23 @@
             renderCharacterList();
             claimGoldInbox();
         } catch(e) { /* нет сети — используем localStorage */ }
+    }
+
+    function showBanScreen(reason) {
+        var el = document.getElementById('banScreen');
+        if (!el) {
+            el = document.createElement('div');
+            el.id = 'banScreen';
+            el.style.cssText = 'position:fixed;inset:0;background:#0b0c10;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;color:#fff;text-align:center;padding:32px;';
+            el.innerHTML = '<div style="font-size:48px;">🚫</div>'
+                + '<div style="font-size:20px;font-weight:700;">Доступ заблокирован</div>'
+                + '<div style="font-size:14px;color:#a3a6b5;max-width:320px;">Ваш аккаунт Discord был заблокирован администратором.</div>'
+                + '<div id="banReason" style="font-size:13px;color:#fca311;max-width:320px;"></div>';
+            document.body.appendChild(el);
+        }
+        var reasonEl = document.getElementById('banReason');
+        if (reasonEl && reason) reasonEl.textContent = 'Причина: ' + reason;
+        el.style.display = 'flex';
     }
 
     async function saveCurrentChar(goldTx) {
@@ -6055,6 +6088,167 @@
         document.body.appendChild(t);
         setTimeout(function() { if (t.parentNode) t.remove(); }, durationMs || 2200);
     }
+
+    // ── ПАНЕЛЬ МОДЕРАЦИИ ─────────────────────────────────────────────────────
+
+    var _adminCurrentTab = 'users';
+    var _adminUsers = [];
+
+    function openAdminPanel() {
+        var ov = document.getElementById('adminPanelOverlay');
+        ov.style.display = 'flex';
+        switchAdminTab('users');
+    }
+
+    function closeAdminPanel() {
+        document.getElementById('adminPanelOverlay').style.display = 'none';
+    }
+
+    function switchAdminTab(tab) {
+        _adminCurrentTab = tab;
+        var btnUsers = document.getElementById('adminTabUsers');
+        var btnLog   = document.getElementById('adminTabLog');
+        var active   = 'background:rgba(255,77,77,0.18);border:1px solid rgba(255,77,77,0.5);color:#ff4d4d;';
+        var inactive = 'background:rgba(255,255,255,0.05);border:1px solid #4f546c;color:#a3a6b5;';
+        if (btnUsers) btnUsers.style.cssText = (tab==='users'?active:inactive)+'padding:4px 12px;border-radius:6px;font-size:12px;cursor:pointer;';
+        if (btnLog)   btnLog.style.cssText   = (tab==='log'?active:inactive)+'padding:4px 12px;border-radius:6px;font-size:12px;cursor:pointer;';
+        if (tab === 'users') loadAdminUsers();
+        else loadAdminLog();
+    }
+
+    async function loadAdminUsers() {
+        var body = document.getElementById('adminPanelBody');
+        body.innerHTML = '<div style="color:#8a8d9a;text-align:center;padding:30px;">Загрузка...</div>';
+        try {
+            var token = localStorage.getItem('rf_token');
+            var res = await fetch(WORKER_URL + '/admin/users', { headers: { 'Authorization': 'Bearer ' + token } });
+            if (!res.ok) { body.innerHTML = '<div style="color:#ff4d4d;padding:20px;">Ошибка доступа</div>'; return; }
+            _adminUsers = await res.json();
+            renderAdminUsers();
+        } catch(e) { body.innerHTML = '<div style="color:#ff4d4d;padding:20px;">Ошибка сети</div>'; }
+    }
+
+    function renderAdminUsers() {
+        var body = document.getElementById('adminPanelBody');
+        if (!_adminUsers.length) { body.innerHTML = '<div style="color:#8a8d9a;text-align:center;padding:30px;">Нет игроков</div>'; return; }
+        var isSuperAdminUser = _adminUsers.find(function(u) { return u.is_super; });
+        body.innerHTML = _adminUsers.map(function(u) {
+            var avatarUrl = u.avatar ? 'https://cdn.discordapp.com/avatars/'+u.discord_id+'/'+u.avatar+'.png?size=32' : '';
+            var avatarHtml = avatarUrl ? '<img src="'+avatarUrl+'" style="width:32px;height:32px;border-radius:50%;flex-shrink:0;">' : '<div style="width:32px;height:32px;border-radius:50%;background:#2a2d38;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;">👤</div>';
+            var badges = '';
+            if (u.is_super) badges += '<span style="font-size:10px;background:rgba(252,163,17,0.2);border:1px solid #fca311;color:#fca311;border-radius:4px;padding:1px 5px;">СУПЕР</span> ';
+            else if (u.is_admin) badges += '<span style="font-size:10px;background:rgba(0,191,255,0.15);border:1px solid #00bfff;color:#00bfff;border-radius:4px;padding:1px 5px;">АДМИН</span> ';
+            if (u.is_banned) badges += '<span style="font-size:10px;background:rgba(255,77,77,0.2);border:1px solid #ff4d4d;color:#ff4d4d;border-radius:4px;padding:1px 5px;">ЗАБАНЕН</span> ';
+            var lastSeen = u.last_seen ? new Date(u.last_seen).toLocaleDateString('ru-RU') : '—';
+            var actions = '';
+            if (!u.is_super) {
+                if (u.is_banned) {
+                    actions += '<button onclick="adminUnban(\''+u.discord_id+'\')" style="background:rgba(40,167,69,0.15);border:1px solid #28a745;color:#28a745;padding:3px 8px;border-radius:5px;font-size:11px;cursor:pointer;">Разбанить</button> ';
+                } else {
+                    actions += '<button onclick="adminBanPrompt(\''+u.discord_id+'\',\''+escapeHTML(u.username)+'\')" style="background:rgba(255,77,77,0.12);border:1px solid rgba(255,77,77,0.5);color:#ff4d4d;padding:3px 8px;border-radius:5px;font-size:11px;cursor:pointer;">Забанить</button> ';
+                }
+                if (_isAdmin) {
+                    if (!u.is_admin) {
+                        actions += '<button onclick="adminGrant(\''+u.discord_id+'\')" style="background:rgba(0,191,255,0.1);border:1px solid rgba(0,191,255,0.4);color:#00bfff;padding:3px 8px;border-radius:5px;font-size:11px;cursor:pointer;">+ Админ</button> ';
+                    } else {
+                        actions += '<button onclick="adminRevoke(\''+u.discord_id+'\')" style="background:rgba(255,255,255,0.05);border:1px solid #4f546c;color:#a3a6b5;padding:3px 8px;border-radius:5px;font-size:11px;cursor:pointer;">− Админ</button> ';
+                    }
+                }
+                actions += '<button onclick="adminForceLogout(\''+u.discord_id+'\')" style="background:rgba(255,255,255,0.04);border:1px solid #4f546c;color:#6c757d;padding:3px 8px;border-radius:5px;font-size:11px;cursor:pointer;">Выход</button>';
+            }
+            return '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #2d3142;">'
+                + avatarHtml
+                + '<div style="flex:1;min-width:0;">'
+                + '<div style="font-size:13px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+escapeHTML(u.username)+' '+badges+'</div>'
+                + '<div style="font-size:11px;color:#6c757d;">ID: '+u.discord_id+' · '+lastSeen+'</div>'
+                + (u.ban_info ? '<div style="font-size:11px;color:#ff6b6b;">Причина: '+escapeHTML(u.ban_info.reason||'')+'</div>' : '')
+                + '</div>'
+                + '<div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;">'+actions+'</div>'
+                + '</div>';
+        }).join('');
+    }
+
+    async function adminBanPrompt(discordId, username) {
+        var reason = prompt('Причина бана для ' + username + ':');
+        if (reason === null) return;
+        if (!reason.trim()) reason = 'нарушение правил';
+        try {
+            var token = localStorage.getItem('rf_token');
+            var res = await fetch(WORKER_URL + '/admin/ban', { method:'POST', headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'}, body: JSON.stringify({ discord_id: discordId, reason: reason.trim() }) });
+            if (res.ok) { showToast('Забанен: ' + username); loadAdminUsers(); }
+            else { showToast('Ошибка бана'); }
+        } catch(e) { showToast('Ошибка сети'); }
+    }
+
+    async function adminUnban(discordId) {
+        try {
+            var token = localStorage.getItem('rf_token');
+            var res = await fetch(WORKER_URL + '/admin/unban', { method:'POST', headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'}, body: JSON.stringify({ discord_id: discordId }) });
+            if (res.ok) { showToast('Разбанен'); loadAdminUsers(); }
+            else { showToast('Ошибка'); }
+        } catch(e) { showToast('Ошибка сети'); }
+    }
+
+    async function adminGrant(discordId) {
+        try {
+            var token = localStorage.getItem('rf_token');
+            var res = await fetch(WORKER_URL + '/admin/grant', { method:'POST', headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'}, body: JSON.stringify({ discord_id: discordId }) });
+            if (res.ok) { showToast('Права выданы'); loadAdminUsers(); }
+            else { showToast('Только супер-админ'); }
+        } catch(e) { showToast('Ошибка сети'); }
+    }
+
+    async function adminRevoke(discordId) {
+        try {
+            var token = localStorage.getItem('rf_token');
+            var res = await fetch(WORKER_URL + '/admin/revoke', { method:'POST', headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'}, body: JSON.stringify({ discord_id: discordId }) });
+            if (res.ok) { showToast('Права сняты'); loadAdminUsers(); }
+            else { showToast('Только супер-админ'); }
+        } catch(e) { showToast('Ошибка сети'); }
+    }
+
+    async function adminForceLogout(discordId) {
+        try {
+            var token = localStorage.getItem('rf_token');
+            var res = await fetch(WORKER_URL + '/admin/force-logout', { method:'POST', headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'}, body: JSON.stringify({ discord_id: discordId }) });
+            if (res.ok) { showToast('Принудительный выход'); }
+            else { showToast('Ошибка'); }
+        } catch(e) { showToast('Ошибка сети'); }
+    }
+
+    async function loadAdminLog() {
+        var body = document.getElementById('adminPanelBody');
+        body.innerHTML = '<div style="color:#8a8d9a;text-align:center;padding:30px;">Загрузка...</div>';
+        try {
+            var token = localStorage.getItem('rf_token');
+            var res = await fetch(WORKER_URL + '/admin/mod-log', { headers: { 'Authorization': 'Bearer ' + token } });
+            if (!res.ok) { body.innerHTML = '<div style="color:#ff4d4d;padding:20px;">Ошибка доступа</div>'; return; }
+            var log = await res.json();
+            if (!log.length) { body.innerHTML = '<div style="color:#8a8d9a;text-align:center;padding:30px;">Лог пуст</div>'; return; }
+            var actionLabels = { ban:'🚫 Бан', unban:'✅ Разбан', grant_admin:'👑 Выдача прав', revoke_admin:'🔻 Снятие прав', force_logout:'🔒 Принуд. выход', transfer_char:'🔄 Передача персонажа' };
+            var exportBtn = '<button onclick="exportAdminLog()" style="width:100%;margin-bottom:12px;background:rgba(0,191,255,0.1);border:1px solid rgba(0,191,255,0.4);color:#00bfff;padding:6px;border-radius:6px;font-size:12px;cursor:pointer;">⬇ Экспорт JSON</button>';
+            body.innerHTML = exportBtn + log.map(function(e) {
+                var d = new Date(e.ts).toLocaleString('ru-RU');
+                var label = actionLabels[e.action] || e.action;
+                return '<div style="padding:8px 0;border-bottom:1px solid #2d3142;font-size:12px;">'
+                    + '<div style="color:#a3a6b5;">'+d+'</div>'
+                    + '<div style="color:#fff;margin-top:2px;"><b>'+label+'</b>: <span style="color:#fca311;">'+escapeHTML(e.target_name||e.target_id)+'</span></div>'
+                    + '<div style="color:#8a8d9a;">Выполнил: '+escapeHTML(e.by_name||e.by_id)+(e.reason?' · Причина: '+escapeHTML(e.reason):'')+'</div>'
+                    + '</div>';
+            }).join('');
+            body._logData = log;
+        } catch(e) { body.innerHTML = '<div style="color:#ff4d4d;padding:20px;">Ошибка сети</div>'; }
+    }
+
+    function exportAdminLog() {
+        var body = document.getElementById('adminPanelBody');
+        var log = body._logData || [];
+        var blob = new Blob([JSON.stringify(log, null, 2)], { type: 'application/json' });
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'riverforge_mod_log_' + new Date().toISOString().slice(0,10) + '.json';
+        a.click();
+    }
 </script>
 <!-- МОДАЛ ЗОЛОТА -->
 <div id="goldModal" onclick="closeGoldModal()" style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.78);z-index:50;align-items:center;justify-content:center;">
@@ -6112,6 +6306,23 @@
     <div class="crop-footer">
         <button class="crop-cancel" onclick="closeCropModal()">Отмена</button>
         <button class="crop-apply" onclick="applyCrop()">Применить</button>
+    </div>
+</div>
+
+<!-- ПАНЕЛЬ МОДЕРАЦИИ -->
+<div id="adminPanelOverlay" onclick="closeAdminPanel()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.82);z-index:20000;align-items:flex-start;justify-content:center;padding-top:40px;">
+    <div onclick="event.stopPropagation()" style="background:#161920;border:2px solid rgba(255,77,77,0.4);border-radius:12px;width:min(520px,96vw);max-height:80vh;display:flex;flex-direction:column;overflow:hidden;">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #2d3142;">
+            <span style="font-size:15px;font-weight:700;color:#ff4d4d;">⚙ Панель модерации</span>
+            <div style="display:flex;gap:8px;">
+                <button id="adminTabUsers" onclick="switchAdminTab('users')" style="background:rgba(255,77,77,0.18);border:1px solid rgba(255,77,77,0.5);color:#ff4d4d;padding:4px 12px;border-radius:6px;font-size:12px;cursor:pointer;">Игроки</button>
+                <button id="adminTabLog" onclick="switchAdminTab('log')" style="background:rgba(255,255,255,0.05);border:1px solid #4f546c;color:#a3a6b5;padding:4px 12px;border-radius:6px;font-size:12px;cursor:pointer;">Лог</button>
+                <button onclick="closeAdminPanel()" style="background:none;border:none;color:#8a8d9a;font-size:20px;cursor:pointer;line-height:1;padding:0 4px;">&times;</button>
+            </div>
+        </div>
+        <div id="adminPanelBody" style="overflow-y:auto;flex:1;padding:14px 18px;">
+            <div style="color:#8a8d9a;text-align:center;padding:30px;">Загрузка...</div>
+        </div>
     </div>
 </div>
 </body>
