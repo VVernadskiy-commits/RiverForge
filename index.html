@@ -3,7 +3,7 @@
 <head>
     <link rel="icon" href="/RiverForge/public/icon-192.png" type="image/png">
     <meta charset="UTF-8">
-    <meta name="application-version" content="v0.7.6">
+    <meta name="application-version" content="v0.7.7">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RiverForge</title>
     <meta name="description" content="Цифровой лист персонажа и игровой справочник для НРИ">
@@ -5846,7 +5846,7 @@
         var _equip = [];
         if (char) Object.keys(char.equipment || {}).forEach(function(slot) {
             var item = (char.equipment || {})[slot];
-            if (item && item.name) _equip.push({ slot: slot, name: item.name, equipped: !!item.equipped });
+            if (item && item.art) _equip.push({ slot: slot, equipped: item.equipped !== false });
         });
         var meta = char ? {
             char_id:        char.id,
