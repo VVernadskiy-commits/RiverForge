@@ -3,7 +3,7 @@
 <head>
     <link rel="icon" href="/RiverForge/public/icon-192.png" type="image/png">
     <meta charset="UTF-8">
-    <meta name="application-version" content="v0.7.9">
+    <meta name="application-version" content="v0.7.10">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RiverForge</title>
     <meta name="description" content="Цифровой лист персонажа и игровой справочник для НРИ">
@@ -3092,23 +3092,32 @@
     /* ── LocalStorage: персонажи ─────────────────────────────────────────────────
        loadChars() / saveChars(arr) — сериализуют массив персонажей
        applyMigrations(chars) — переименовывает устаревшие cls/spec/race/subrace */
-    function loadChars() { return JSON.parse(localStorage.getItem('rpg_chars') || '[]'); }
+    function loadChars() { var c = JSON.parse(localStorage.getItem('rpg_chars') || '[]'); return applyMigrations(c); }
     function saveChars(arr) { localStorage.setItem('rpg_chars', JSON.stringify(arr)); }
 
     function applyMigrations(chars) {
         var map = MIGRATION_MAP;
-        if (!map) return chars;
-        var hasCls = map.cls && Object.keys(map.cls).length;
-        var hasSpec = map.spec && Object.keys(map.spec).length;
-        var hasRace = map.race && Object.keys(map.race).length;
-        var hasSub = map.subrace && Object.keys(map.subrace).length;
-        if (!hasCls && !hasSpec && !hasRace && !hasSub) return chars;
+        var changed = false;
         chars.forEach(function(c) {
+            // Сброс весов инициативы если эмпатия не в базовых источниках
+            if (c.statWeights && c.statWeights['инициатива']) {
+                var iw = c.statWeights['инициатива'];
+                if (!iw['эмпатия'] || iw['эмпатия'].pct !== 20) {
+                    delete c.statWeights['инициатива'];
+                    changed = true;
+                }
+            }
+            if (!map) return;
+            var hasCls = map.cls && Object.keys(map.cls).length;
+            var hasSpec = map.spec && Object.keys(map.spec).length;
+            var hasRace = map.race && Object.keys(map.race).length;
+            var hasSub = map.subrace && Object.keys(map.subrace).length;
             if (hasCls && map.cls[c.cls]) c.cls = map.cls[c.cls];
             if (hasSpec && map.spec[c.spec]) c.spec = map.spec[c.spec];
             if (hasRace && map.race[c.race]) c.race = map.race[c.race];
             if (hasSub && map.subrace && map.subrace[c.subrace]) c.subrace = map.subrace[c.subrace];
         });
+        if (changed) saveChars(chars);
         return chars;
     }
 
