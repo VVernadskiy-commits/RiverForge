@@ -3,7 +3,7 @@
 <head>
     <link rel="icon" href="/RiverForge/public/icon-192.png" type="image/png">
     <meta charset="UTF-8">
-    <meta name="application-version" content="v0.7.11">
+    <meta name="application-version" content="v0.7.12">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RiverForge</title>
     <meta name="description" content="Цифровой лист персонажа и игровой справочник для НРИ">
@@ -1413,6 +1413,9 @@
             </button>
             <button id="adminPanelBtn" onclick="openAdminPanel()" style="width:100%;padding:8px 12px;border-radius:8px;border:1px solid rgba(255,77,77,0.4);background:rgba(255,77,77,0.08);color:#ff4d4d;font-size:12px;cursor:pointer;transition:all 0.15s;">
                 ⚙ Модерация
+            </button>
+            <button id="halfbloodBtn" onclick="toggleHalfblood()" style="width:100%;padding:8px 12px;border-radius:8px;border:1px solid rgba(255,165,0,0.4);background:rgba(255,165,0,0.08);color:#ffa500;font-size:12px;cursor:pointer;transition:all 0.15s;">
+                🔓 Полукровка: ВЫКЛ
             </button>
         </div>
         <div class="drawer-footer" id="drawerVersion">RiverForge</div>
@@ -3280,10 +3283,29 @@
 
     var currentCharIsOwner = false;
 
+    async function toggleHalfblood() {
+        var token = localStorage.getItem('rf_token');
+        if (!token) return;
+        try {
+            var r = await fetch(WORKER_URL + '/admin/toggle-halfblood', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
+            var d = await r.json();
+            if (d.ok) {
+                _halfbloodMode = !!d.halfblood_mode;
+                var btn = document.getElementById('halfbloodBtn');
+                if (btn) btn.textContent = _halfbloodMode ? '🔒 Полукровка: ВКЛ' : '🔓 Полукровка: ВЫКЛ';
+                showToast(_halfbloodMode ? 'Режим полукровки включён' : 'Режим полукровки выключен');
+            }
+        } catch(e) { showToast('Ошибка'); }
+    }
+
     function addNewCharacter() {
         var uid = getCurrentDiscordId();
         if (!uid) {
             alert('Войдите через Discord чтобы создавать персонажей');
+            return;
+        }
+        if (_halfbloodMode && !_isAdmin && !_isPlayer) {
+            showToast('Создание персонажей сейчас ограничено');
             return;
         }
         var chars = loadChars();
@@ -5805,6 +5827,8 @@
     }
 
     var _isAdmin = false;
+    var _isPlayer = false;
+    var _halfbloodMode = false;
 
     async function loadCharsFromServer() {
         try {
@@ -5820,15 +5844,19 @@
             }
             var data = await res.json();
             var serverChars = Array.isArray(data) ? data : (data.chars || []);
-            _isAdmin = !Array.isArray(data) && !!data.is_admin;
+            _isAdmin       = !Array.isArray(data) && !!data.is_admin;
+            _isPlayer      = !Array.isArray(data) && !!data.is_player;
+            _halfbloodMode = !Array.isArray(data) && !!data.halfblood_mode;
             var sec = document.getElementById('devOwnerSection');
             if (sec && _isAdmin) sec.style.display = 'flex';
+            var hbBtn = document.getElementById('halfbloodBtn');
+            if (hbBtn) hbBtn.textContent = _halfbloodMode ? '🔒 Полукровка: ВКЛ' : '🔓 Полукровка: ВЫКЛ';
             var local = loadChars();
             var localOnly = local.filter(function(c) { return !c.owner_id; });
             var starMap = {};
-            local.forEach(function(c) { if (c.starred) starMap[c.id] = c.starredAt || 0; });
+            local.forEach(function(c) { starMap[c.id] = { starred: !!c.starred, starredAt: c.starredAt || null }; });
             var merged = applyMigrations(serverChars.concat(localOnly));
-            merged.forEach(function(c) { if (starMap[c.id] != null) { c.starred = true; c.starredAt = starMap[c.id]; } });
+            merged.forEach(function(c) { if (c.id in starMap) { c.starred = starMap[c.id].starred; c.starredAt = starMap[c.id].starredAt; } });
             localStorage.setItem('rpg_chars', JSON.stringify(merged));
             renderCharacterList();
             claimGoldInbox();
@@ -6190,6 +6218,7 @@
             var _pill = 'display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:bold;white-space:nowrap;';
             if (u.is_super) badges += '<span style="'+_pill+'border:1px solid rgba(252,163,17,0.5);background:rgba(252,163,17,0.15);color:#fca311;">СУПЕР</span> ';
             else if (u.is_admin) badges += '<span style="'+_pill+'border:1px solid rgba(0,191,255,0.5);background:rgba(0,191,255,0.15);color:#00bfff;">АДМИН</span> ';
+            if (u.is_player) badges += '<span style="'+_pill+'border:1px solid rgba(40,167,69,0.5);background:rgba(40,167,69,0.15);color:#28a745;">ИГРОК</span> ';
             if (u.is_banned) badges += '<span style="'+_pill+'border:1px solid rgba(255,77,77,0.5);background:rgba(255,77,77,0.15);color:#ff4d4d;">ЗАБАНЕН</span> ';
             var lastSeen = u.last_seen ? new Date(u.last_seen).toLocaleDateString('ru-RU') : '—';
             var actions = '';
@@ -6204,6 +6233,11 @@
                         actions += '<button onclick="adminGrant(\''+u.discord_id+'\')" style="background:rgba(0,191,255,0.1);border:1px solid rgba(0,191,255,0.4);color:#00bfff;padding:3px 8px;border-radius:5px;font-size:11px;cursor:pointer;">+ Админ</button> ';
                     } else {
                         actions += '<button onclick="adminRevoke(\''+u.discord_id+'\')" style="background:rgba(128,128,128,0.06);border:1px solid rgba(128,128,128,0.3);color:var(--text-muted);padding:3px 8px;border-radius:5px;font-size:11px;cursor:pointer;">− Админ</button> ';
+                    }
+                    if (!u.is_player) {
+                        actions += '<button onclick="adminGrantPlayer(\''+u.discord_id+'\')" style="background:rgba(40,167,69,0.1);border:1px solid rgba(40,167,69,0.4);color:#28a745;padding:3px 8px;border-radius:5px;font-size:11px;cursor:pointer;">+ Игрок</button> ';
+                    } else {
+                        actions += '<button onclick="adminRevokePlayer(\''+u.discord_id+'\')" style="background:rgba(128,128,128,0.06);border:1px solid rgba(128,128,128,0.3);color:var(--text-muted);padding:3px 8px;border-radius:5px;font-size:11px;cursor:pointer;">− Игрок</button> ';
                     }
                 }
                 actions += '<button onclick="adminForceLogout(\''+u.discord_id+'\')" style="background:rgba(128,128,128,0.04);border:1px solid rgba(128,128,128,0.25);color:var(--text-muted);padding:3px 8px;border-radius:5px;font-size:11px;cursor:pointer;">Выход</button>';
@@ -6256,6 +6290,24 @@
             var res = await fetch(WORKER_URL + '/admin/revoke', { method:'POST', headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'}, body: JSON.stringify({ discord_id: discordId }) });
             if (res.ok) { showToast('Права сняты'); loadAdminUsers(); }
             else { showToast('Только супер-админ'); }
+        } catch(e) { showToast('Ошибка сети'); }
+    }
+
+    async function adminGrantPlayer(discordId) {
+        try {
+            var token = localStorage.getItem('rf_token');
+            var res = await fetch(WORKER_URL + '/admin/grant-player', { method:'POST', headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'}, body: JSON.stringify({ discord_id: discordId }) });
+            if (res.ok) { showToast('Роль игрока выдана'); loadAdminUsers(); }
+            else { showToast('Ошибка'); }
+        } catch(e) { showToast('Ошибка сети'); }
+    }
+
+    async function adminRevokePlayer(discordId) {
+        try {
+            var token = localStorage.getItem('rf_token');
+            var res = await fetch(WORKER_URL + '/admin/revoke-player', { method:'POST', headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'}, body: JSON.stringify({ discord_id: discordId }) });
+            if (res.ok) { showToast('Роль игрока снята'); loadAdminUsers(); }
+            else { showToast('Ошибка'); }
         } catch(e) { showToast('Ошибка сети'); }
     }
 
