@@ -3,7 +3,7 @@
 <head>
     <link rel="icon" href="/RiverForge/public/icon-192.png" type="image/png">
     <meta charset="UTF-8">
-    <meta name="application-version" content="v0.7.8">
+    <meta name="application-version" content="v0.7.9">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RiverForge</title>
     <meta name="description" content="Цифровой лист персонажа и игровой справочник для НРИ">
@@ -1811,9 +1811,10 @@
     var STAT_TYPES = {}, STAT_COLORS = {}, STAT_SOURCES = {};
     var ALL_VLADENIE = [], ALL_KHAR = [], ALL_SKLON = ['тело','разум','дух'], EQUIP_SLOTS = [];
     var ATTR_BASE_SOURCES = {
-        'здоровье': [{key:'тело',pct:100},{key:'атлетизм',pct:20},{key:'сила',pct:10},{key:'уровень',pct:500}],
-        'энергия':  [{key:'тело',pct:20},{key:'стойкость',pct:5},{key:'выдержка',pct:5},{key:'уровень',pct:100}],
-        'мана':     [{key:'разум',pct:100},{key:'интеллект',pct:100},{key:'память',pct:50},{key:'дух',pct:300},{key:'уровень',pct:500}]
+        'здоровье':   [{key:'тело',pct:100},{key:'атлетизм',pct:20},{key:'сила',pct:10},{key:'уровень',pct:500}],
+        'энергия':    [{key:'тело',pct:20},{key:'стойкость',pct:5},{key:'выдержка',pct:5},{key:'уровень',pct:100}],
+        'мана':       [{key:'разум',pct:100},{key:'интеллект',pct:100},{key:'память',pct:50},{key:'дух',pct:300},{key:'уровень',pct:500}],
+        'инициатива': [{key:'скрытность',pct:20},{key:'интуиция',pct:20},{key:'мышление',pct:20},{key:'эмпатия',pct:20}]
     };
     var BADGE_DARK = '#ffc107', BADGE_LIGHT = '#009b9e';
 
@@ -2156,10 +2157,16 @@
         var w = loadStatWeights();
         var weights = w[key]; if (!weights) return false;
         var sources = STAT_SOURCES[key] || [];
+        var attrSrcs = ATTR_BASE_SOURCES[key];
         for (var src in weights) {
             var e = weights[src];
             if (sources.indexOf(src) >= 0) {
-                if (!e.active || e.pct !== 100) return true;
+                var defaultPct = 100;
+                if (attrSrcs) {
+                    var found = attrSrcs.find(function(s){ return s.key === src; });
+                    if (found) defaultPct = found.pct;
+                }
+                if (!e.active || e.pct !== defaultPct) return true;
             } else {
                 if (e.active) return true;
             }
@@ -3159,7 +3166,7 @@
 
         var level = f(0.35 * (telo + razum + duh));
         var usilye = 1 + f(level/2);
-        var init   = f(0.20 * (fs['скрытность'] || 1) + 0.20 * (fs['интуиция'] || 1) + 0.20 * (fs['мышление'] || 1));
+        var init   = f(0.20 * (fs['скрытность'] || 1) + 0.20 * (fs['интуиция'] || 1) + 0.20 * (fs['мышление'] || 1) + 0.20 * (fs['эмпатия'] || 1));
         var _sklonMap   = {тело: telo, разум: razum, дух: duh};
         var _derivedMap = {уровень: level, усилие: usilye, инициатива: init};
         function _anyVal(k) {
