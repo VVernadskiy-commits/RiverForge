@@ -3,7 +3,7 @@
 <head>
     <link rel="icon" href="/RiverForge/public/icon-192.png" type="image/png">
     <meta charset="UTF-8">
-    <meta name="application-version" content="v0.7.10">
+    <meta name="application-version" content="v0.7.11">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RiverForge</title>
     <meta name="description" content="Цифровой лист персонажа и игровой справочник для НРИ">
@@ -2348,7 +2348,12 @@
             return;
         }
         if (resPanel) resPanel.style.display = 'none';
-        if (sources && f1 && fs1) {
+        var attrSrcsAlt = ATTR_BASE_SOURCES[key];
+        if (attrSrcsAlt && f1 && fs1) {
+            f1.style.display = 'block';
+            f1.style.borderColor = hexToRgba(color, 0.35);
+            fs1.innerHTML = makeAttrBasicChips(attrSrcsAlt, key);
+        } else if (sources && f1 && fs1) {
             f1.style.display = 'block';
             f1.style.borderColor = hexToRgba(color, 0.35);
             fs1.innerHTML = makeChipsWithControls(sources, key, true);
@@ -2359,7 +2364,8 @@
         } else if (type === 'склонность' && sources) {
             siblings = ALL_KHAR.filter(function(s){ return sources.indexOf(s) < 0; });
         } else if (type === 'производная' && sources) {
-            siblings = ALL_VLADENIE.filter(function(s){ return sources.indexOf(s) < 0; });
+            var baseKeys2 = attrSrcsAlt ? attrSrcsAlt.map(function(s){ return s.key; }) : sources;
+            siblings = ALL_VLADENIE.filter(function(s){ return baseKeys2.indexOf(s) < 0; });
         }
         if (siblings && siblings.length && f2 && fs2) {
             f2.style.display = 'block';
