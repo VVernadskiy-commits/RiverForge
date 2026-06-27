@@ -3,7 +3,7 @@
 <head>
     <link rel="icon" href="/RiverForge/public/icon-192.png" type="image/png">
     <meta charset="UTF-8">
-    <meta name="application-version" content="v0.7.12">
+    <meta name="application-version" content="v0.7.13">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RiverForge</title>
     <meta name="description" content="Цифровой лист персонажа и игровой справочник для НРИ">
@@ -1622,8 +1622,8 @@
     </div>
 
     <!-- ПОПАП ВЫБОРА ДРОПДАУНА -->
-    <div id="dselPopup" style="display:none;position:absolute;top:0;left:0;width:100%;height:calc(100% - 70px);background:rgba(0,0,0,0.55);z-index:9998;" onclick="dselClose()">
-        <div id="dselPopupBox" onclick="event.stopPropagation()" style="position:absolute;left:50%;transform:translateX(-50%);top:50%;transform:translate(-50%,-50%);width:72%;max-height:60%;background:#1c1f2b;border:1.5px solid #28a745;border-radius:14px;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.7);">
+    <div id="dselPopup" style="display:none;position:absolute;top:0;left:0;width:100%;height:calc(100% - 70px);background:rgba(0,0,0,0.55);z-index:9998;" onclick="if(event.target===this)dselClose()">
+        <div id="dselPopupBox" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:72%;max-height:60%;background:#1c1f2b;border:1.5px solid #28a745;border-radius:14px;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.7);">
             <div id="dselPopupList" style="padding:6px;"></div>
         </div>
     </div>
