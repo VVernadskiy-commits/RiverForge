@@ -39,14 +39,17 @@ export default {
     const charId    = body.char_id ? String(body.char_id) : 'shared';
     const folder    = 'characters/' + charId;
     const timestamp = Math.floor(Date.now() / 1000);
+    const apiKey    = (env.CLOUDINARY_API_KEY    || '').trim();
+    const apiSecret = (env.CLOUDINARY_API_SECRET || '').trim();
+    const cloud     = (env.CLOUDINARY_CLOUD      || '').trim();
 
     // SHA-1 подпись: folder и timestamp (алфавитный порядок: f < t)
     const paramsToSign = 'folder=' + folder + '&timestamp=' + timestamp;
-    const signature = await sha1(paramsToSign + env.CLOUDINARY_API_SECRET);
+    const signature = await sha1(paramsToSign + apiSecret);
 
     const form = new FormData();
     form.append('file',      dataUrl);
-    form.append('api_key',   env.CLOUDINARY_API_KEY);
+    form.append('api_key',   apiKey);
     form.append('timestamp', String(timestamp));
     form.append('folder',    folder);
     form.append('signature', signature);
@@ -54,7 +57,7 @@ export default {
     let res;
     try {
       res = await fetch(
-        'https://api.cloudinary.com/v1_1/' + env.CLOUDINARY_CLOUD + '/image/upload',
+        'https://api.cloudinary.com/v1_1/' + cloud + '/image/upload',
         { method: 'POST', body: form }
       );
     } catch (e) {
@@ -67,10 +70,12 @@ export default {
     }
 
     if (!data.secure_url) {
-      return json({ success: false, error: 'cloudinary_error', detail: data.error || data }, 502);
+      const msg = data.error && data.error.message ? data.error.message : JSON.stringify(data);
+      return json({ success: false, error: msg }, 200);
     }
 
-    return json({ success: true, link: data.secure_url, public_id: data.public_id }, 200);
+    const optimizedUrl = data.secure_url.replace('/upload/', '/upload/f_auto,q_auto/');
+    return json({ success: true, link: optimizedUrl, public_id: data.public_id }, 200);
   },
 };
 

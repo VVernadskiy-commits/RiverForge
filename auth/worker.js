@@ -50,6 +50,17 @@ async function isAdmin(userId, env) {
     return !!rec;
 }
 
+async function isPlayer(userId, env) {
+    if (!userId) return false;
+    var rec = await env.CHARS.get('player:' + userId);
+    return !!rec;
+}
+
+async function isHalfbloodMode(env) {
+    var rec = await env.CHARS.get('mode:halfblood');
+    return !!rec;
+}
+
 async function isBanned(userId, env) {
     if (!userId) return false;
     var rec = await env.CHARS.get('ban:' + userId);
@@ -207,8 +218,10 @@ async function handleRequest(request, env, corsHeaders) {
             }
         }
 
-        var adminFlag = user ? await isAdmin(user.discord_id, env) : false;
-        return jsonResp({ chars: allChars, is_admin: adminFlag }, 200, corsHeaders);
+        var adminFlag      = user ? await isAdmin(user.discord_id, env)  : false;
+        var playerFlag     = user ? await isPlayer(user.discord_id, env) : false;
+        var halfbloodFlag  = await isHalfbloodMode(env);
+        return jsonResp({ chars: allChars, is_admin: adminFlag, is_player: playerFlag, halfblood_mode: halfbloodFlag }, 200, corsHeaders);
     }
 
     // GET /chars
@@ -240,36 +253,48 @@ async function handleRequest(request, env, corsHeaders) {
         var oldDataRaw = await env.CHARS.get('chars:' + user.discord_id);
         var oldChars   = oldDataRaw ? JSON.parse(oldDataRaw) : [];
 
+        // Режим полукровки: создавать новых персонажей могут только игроки/админы
+        if (await isHalfbloodMode(env)) {
+            var newIds = chars.map(function(c){return c.id;});
+            var oldIds = oldChars.map(function(c){return c.id;});
+            var hasNew = newIds.some(function(id){return oldIds.indexOf(id)<0;});
+            if (hasNew && !await isAdmin(user.discord_id, env) && !await isPlayer(user.discord_id, env)) {
+                return jsonResp({ ok: false, error: 'halfblood_restricted' }, 403, corsHeaders);
+            }
+        }
+
         chars = chars.map(function(c) {
             return Object.assign({}, c, { owner_id: user.discord_id, owner_username: user.username });
         });
 
-        await env.CHARS.put('chars:' + user.discord_id, JSON.stringify(chars));
+        var dataChanged = JSON.stringify(oldChars) !== JSON.stringify(chars);
 
-        for (var ci = 0; ci < chars.length; ci++) {
-            var c = chars[ci];
-            if (!c.id) continue;
-            await env.CHARS.put('char_info:' + c.id, JSON.stringify({
-                char_id:          c.id,
-                char_name:        c.name  || '—',
-                owner_discord_id: user.discord_id,
-                owner_username:   user.username,
-                cls:              c.spec  || c.cls || '—',
-                race:             c.race  || '—'
-            }));
-        }
-        for (var oi = 0; oi < oldChars.length; oi++) {
-            var oc = oldChars[oi];
-            if (oc.id && !chars.find(function(c) { return c.id === oc.id; })) {
-                await env.CHARS.delete('char_info:' + oc.id);
+        if (dataChanged || !oldChars.length) {
+            await env.CHARS.put('chars:' + user.discord_id, JSON.stringify(chars));
+
+            for (var ci = 0; ci < chars.length; ci++) {
+                var c = chars[ci];
+                if (!c.id) continue;
+                await env.CHARS.put('char_info:' + c.id, JSON.stringify({
+                    char_id:          c.id,
+                    char_name:        c.name  || '—',
+                    owner_discord_id: user.discord_id,
+                    owner_username:   user.username
+                }));
             }
-        }
+            for (var oi = 0; oi < oldChars.length; oi++) {
+                var oc = oldChars[oi];
+                if (oc.id && !chars.find(function(c) { return c.id === oc.id; })) {
+                    await env.CHARS.delete('char_info:' + oc.id);
+                }
+            }
 
-        var logsRaw = await env.CHARS.get('logs:' + user.discord_id);
-        var logs    = logsRaw ? JSON.parse(logsRaw) : [];
-        logs.unshift({ ts: Date.now(), char_id: meta.char_id || null, char_name: meta.char_name || '—', level: meta.level || '—', cls: meta.cls || '—', race: meta.race || '—', gold: meta.gold || 0, vladenie: meta.vladenie || {}, equipment_slots: meta.equipment_slots || [], skills_count: meta.skills_count || 0, magic_count: meta.magic_count || 0 });
-        if (logs.length > 500) logs = logs.slice(0, 500);
-        await env.CHARS.put('logs:' + user.discord_id, JSON.stringify(logs));
+            var logsRaw = await env.CHARS.get('logs:' + user.discord_id);
+            var logs    = logsRaw ? JSON.parse(logsRaw) : [];
+            logs.unshift({ ts: Date.now(), char_id: meta.char_id || null, char_name: meta.char_name || '—', level: meta.level || '—', cls: meta.cls || '—', race: meta.race || '—', gold: meta.gold || 0, vladenie: meta.vladenie || {}, equipment_slots: meta.equipment_slots || [], skills_count: meta.skills_count || 0, magic_count: meta.magic_count || 0 });
+            if (logs.length > 500) logs = logs.slice(0, 500);
+            await env.CHARS.put('logs:' + user.discord_id, JSON.stringify(logs));
+        }
 
         if (env.DISCORD_WEBHOOK_URL) {
             try {
@@ -306,8 +331,8 @@ async function handleRequest(request, env, corsHeaders) {
                     embedTitle=meta.char_name||'—'; embedDesc=charLine+'\n\n'+arrow+': '+sign+tx.amount+' 🪙\nПричина: '+(tx.reason||'—')+'\n'+label+': '+(tx.party||'Сторонние лица')+'\n\n'+goldLine;
                     embedColor=tx.type==='income'?0x43b581:0xf04747;
                 } else {
-                    var bodyStr=charLine; if(isNew){bodyStr+='\n\n✨ Новый персонаж';}else if(changes.length>0){bodyStr+='\n\n'+changes.join('\n');}else{bodyStr+='\n\nБез изменений';}
-                    bodyStr+='\n\n'+goldLine; embedTitle=meta.char_name||'—'; embedDesc=bodyStr; embedColor=(isNew||changes.length>0)?0xfca311:0x5b6078;
+                    var bodyStr; if(isNew){bodyStr=charLine+'\n\n✨ Новый персонаж\n\n'+goldLine;}else if(changes.length>0){bodyStr=charLine+'\n\n'+changes.join('\n')+'\n\n'+goldLine;}else{bodyStr='Без изменений';}
+                    embedTitle=meta.char_name||'—'; embedDesc=bodyStr; embedColor=(isNew||changes.length>0)?0xfca311:0x5b6078;
                 }
                 var pingContent = (meta.gold_tx && meta.gold_tx.party_discord_id) ? '<@'+meta.gold_tx.party_discord_id+'>, тебе пришёл перевод!' : undefined;
                 await fetch(env.DISCORD_WEBHOOK_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ content:pingContent, username:user.username, avatar_url:avatarUrl, embeds:[{title:embedTitle,description:embedDesc,color:embedColor,timestamp:new Date().toISOString()}] }) });
@@ -415,12 +440,14 @@ async function handleRequest(request, env, corsHeaders) {
             var u = JSON.parse(raw);
             var banned  = await isBanned(u.discord_id, env);
             var banInfo = banned ? await getBanInfo(u.discord_id, env) : null;
-            var adminRec = await env.CHARS.get('admin:' + u.discord_id);
+            var adminRec  = await env.CHARS.get('admin:' + u.discord_id);
+            var playerRec = await env.CHARS.get('player:' + u.discord_id);
             users.push(Object.assign({}, u, {
                 is_banned:   banned,
                 ban_info:    banInfo,
                 is_admin:    !!(adminRec || isSuperAdmin(u.discord_id, env)),
-                is_super:    isSuperAdmin(u.discord_id, env)
+                is_super:    isSuperAdmin(u.discord_id, env),
+                is_player:   !!playerRec
             }));
         }
         users.sort(function(a, b) { return (b.last_seen || 0) - (a.last_seen || 0); });
@@ -488,6 +515,51 @@ async function handleRequest(request, env, corsHeaders) {
         await env.CHARS.delete('admin:' + targetId);
         await addModLog(env, 'revoke_admin', user.discord_id, user.username, targetId, targetName, '');
         return jsonResp({ ok: true }, 200, corsHeaders);
+    }
+
+    // POST /admin/grant-player — выдать роль игрока (только админ+)
+    if (url.pathname === '/admin/grant-player' && request.method === 'POST') {
+        var user = await getUser(request, env);
+        if (!user) return json401(corsHeaders);
+        if (!await isAdmin(user.discord_id, env)) return json403(corsHeaders);
+        var body; try { body = await request.json(); } catch(e) { return jsonResp({ok:false,error:'bad_json'},400,corsHeaders); }
+        var targetId = String(body.discord_id || '');
+        if (!targetId) return jsonResp({ok:false,error:'no_target'},400,corsHeaders);
+        var targetInfoRaw = await env.CHARS.get('user_info:' + targetId);
+        var targetName = targetInfoRaw ? (JSON.parse(targetInfoRaw).username || targetId) : targetId;
+        await env.CHARS.put('player:' + targetId, JSON.stringify({ granted_by: user.discord_id, granted_at: Date.now() }));
+        await addModLog(env, 'grant_player', user.discord_id, user.username, targetId, targetName, '');
+        return jsonResp({ ok: true }, 200, corsHeaders);
+    }
+
+    // POST /admin/revoke-player — забрать роль игрока (только админ+)
+    if (url.pathname === '/admin/revoke-player' && request.method === 'POST') {
+        var user = await getUser(request, env);
+        if (!user) return json401(corsHeaders);
+        if (!await isAdmin(user.discord_id, env)) return json403(corsHeaders);
+        var body; try { body = await request.json(); } catch(e) { return jsonResp({ok:false,error:'bad_json'},400,corsHeaders); }
+        var targetId = String(body.discord_id || '');
+        if (!targetId) return jsonResp({ok:false,error:'no_target'},400,corsHeaders);
+        var targetInfoRaw = await env.CHARS.get('user_info:' + targetId);
+        var targetName = targetInfoRaw ? (JSON.parse(targetInfoRaw).username || targetId) : targetId;
+        await env.CHARS.delete('player:' + targetId);
+        await addModLog(env, 'revoke_player', user.discord_id, user.username, targetId, targetName, '');
+        return jsonResp({ ok: true }, 200, corsHeaders);
+    }
+
+    // POST /admin/toggle-halfblood — вкл/выкл режим полукровки (только админ+)
+    if (url.pathname === '/admin/toggle-halfblood' && request.method === 'POST') {
+        var user = await getUser(request, env);
+        if (!user) return json401(corsHeaders);
+        if (!await isAdmin(user.discord_id, env)) return json403(corsHeaders);
+        var current = await isHalfbloodMode(env);
+        if (current) {
+            await env.CHARS.delete('mode:halfblood');
+        } else {
+            await env.CHARS.put('mode:halfblood', '1');
+        }
+        await addModLog(env, current ? 'halfblood_off' : 'halfblood_on', user.discord_id, user.username, '', '', '');
+        return jsonResp({ ok: true, halfblood_mode: !current }, 200, corsHeaders);
     }
 
     // POST /admin/force-logout — принудительный выход (сбрасывает токены старше now)

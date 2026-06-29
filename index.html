@@ -1812,13 +1812,8 @@
     var CLASS_ARTS = {}, CLASS_BG = {}, CLASS_DATA = {}, CLASS_AVAIL = {};
     var RACE_ARTS  = {}, RACE_DATA  = {};
     var STAT_TYPES = {}, STAT_COLORS = {}, STAT_SOURCES = {};
-    var ALL_VLADENIE = [], ALL_KHAR = [], ALL_SKLON = ['тело','разум','дух'], EQUIP_SLOTS = [];
-    var ATTR_BASE_SOURCES = {
-        'здоровье':   [{key:'тело',pct:100},{key:'атлетизм',pct:20},{key:'сила',pct:10},{key:'уровень',pct:500}],
-        'энергия':    [{key:'тело',pct:20},{key:'стойкость',pct:5},{key:'выдержка',pct:5},{key:'уровень',pct:100}],
-        'мана':       [{key:'разум',pct:100},{key:'интеллект',pct:100},{key:'память',pct:50},{key:'дух',pct:300},{key:'уровень',pct:500}],
-        'инициатива': [{key:'скрытность',pct:20},{key:'интуиция',pct:20},{key:'мышление',pct:20},{key:'эмпатия',pct:20}]
-    };
+    var ALL_VLADENIE = [], ALL_KHAR = [], ALL_SKLON = [], EQUIP_SLOTS = [];
+    var ATTR_BASE_SOURCES = {};
     var BADGE_DARK = '#ffc107', BADGE_LIGHT = '#009b9e';
 
     function getClassArt(cls, spec) {
@@ -3225,8 +3220,9 @@
 
     /* ── Дефолтные данные нового персонажа ── */
     function defaultStats() {
-        return {сноровка:1,скрытность:1,сила:1,стойкость:1,интуиция:1,внимание:1,
-                память:1,мышление:1,выдержка:1,эмпатия:1,устрашение:1,лидерство:1};
+        var r = {};
+        ALL_VLADENIE.forEach(function(v) { r[v] = 1; });
+        return r;
     }
     function defaultEquipment() {
         return Object.fromEntries(EQUIP_SLOTS.map(function(sl){return [sl.key,{art:null,runes:[null,null,null,null,null]}];}));
@@ -5647,12 +5643,36 @@
                 SUBRACES[race] = Object.keys((dbData.races[race].subraces) || {});
             });
 
-            STAT_TYPES   = cfgData.statTypes;
-            STAT_COLORS  = cfgData.statColors;
-            STAT_SOURCES = cfgData.statSources;
-            ALL_VLADENIE = cfgData.allVladenie;
-            ALL_KHAR     = cfgData.allKhar;
-            EQUIP_SLOTS  = cfgData.equipSlots;
+            STAT_TYPES  = cfgData.statTypes;
+            STAT_COLORS = cfgData.statColors;
+            EQUIP_SLOTS = cfgData.equipSlots;
+
+            // Разбираем statSources: plain строки и key:pct
+            var _rawSrc = cfgData.statSources || {};
+            STAT_SOURCES = {};
+            ATTR_BASE_SOURCES = {};
+            Object.keys(_rawSrc).forEach(function(st) {
+                var rawSrcs = _rawSrc[st] || [];
+                var plainKeys = [];
+                var hasPct = false;
+                var pctSrcs = rawSrcs.map(function(s) {
+                    var ci = s.lastIndexOf(':');
+                    if (ci > 0) {
+                        var k = s.slice(0, ci).trim();
+                        var p = parseInt(s.slice(ci + 1));
+                        if (!isNaN(p)) { hasPct = true; plainKeys.push(k); return {key: k, pct: p}; }
+                    }
+                    plainKeys.push(s.trim());
+                    return {key: s.trim(), pct: null};
+                });
+                STAT_SOURCES[st] = plainKeys;
+                if (hasPct) ATTR_BASE_SOURCES[st] = pctSrcs;
+            });
+
+            // Выводим списки из statTypes
+            ALL_VLADENIE = Object.keys(STAT_TYPES).filter(function(k) { return STAT_TYPES[k] === 'владение'; });
+            ALL_KHAR     = Object.keys(STAT_TYPES).filter(function(k) { return STAT_TYPES[k] === 'характеристика'; });
+            ALL_SKLON    = Object.keys(STAT_TYPES).filter(function(k) { return STAT_TYPES[k] === 'склонность'; });
             MIGRATION_MAP = cfgData.migrationMap || {};
             UPLOAD_URL = cfgData.uploadUrl || '';
             var _gl = (cfgData.appearance || {}).glossary || {};
@@ -5896,7 +5916,7 @@
         if (btn) { btn.textContent = '⏳'; btn.disabled = true; }
 
         var charDerived = char ? calcDerived(char) : null;
-        var _vladKeys = ['сноровка','скрытность','сила','стойкость','интуиция','внимание','память','мышление','выдержка','эмпатия','устрашение','лидерство'];
+        var _vladKeys = ALL_VLADENIE;
         var _vladenie = {};
         if (char) _vladKeys.forEach(function(k) { _vladenie[k] = (char.stats && char.stats[k] != null) ? char.stats[k] : 0; });
         var _equip = [];
